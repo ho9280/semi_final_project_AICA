@@ -1,0 +1,24 @@
+# 파이썬 가상환경 (용량이 매우 크므로 절대 Git 공유 금지)
+.venv/
+venv/
+env/
+
+# 파이썬 바이트코드 및 캐시 파일
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# 주피터 노트북 체크포인트
+.ipynb_checkpoints/
+
+# VS Code 설정 폴더
+.vscode/
+
+# 환경변수 / 개인 API Key 저장 파일 (보안용)
+.env
+
+# (선택) 개인 테스트용 DB 파일이 덮어씌워지는 것을 방지하고 싶을 때
+# 만약 팀원과 DB 파일 자체를 공유할 목적이라면 아래 줄을 주석 처리(#)하세요.
+# *.db
+# complaints_system.db
