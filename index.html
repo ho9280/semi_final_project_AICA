@@ -272,11 +272,11 @@
             user_id: currentUserData.id,
             category: document.getElementById('category').value,
             raw_content: document.getElementById('rawContent').value,
-            summary: document.getElementById('summary').value,
+            summary: document.getElementById('summary').value.trim() || "AI 요약을 진행하지 않은 민원입니다.",
             photo_url: document.getElementById('photoUrl').value || null
         };
 
-        if (!payload.raw_content || !payload.summary) return alert("원문과 요약을 모두 확인하세요.");
+        if (!payload.raw_content.trim()) return alert("원문 내용을 입력해주세요.");
 
         try {
             const res = await fetch(`${API_BASE}/complaints`, {
