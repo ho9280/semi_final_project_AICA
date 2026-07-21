@@ -22,6 +22,7 @@ def init_db():
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         name TEXT NOT NULL,
+        birth_date TEXT NOT NULL,  -- 포맷 확정: YYYY-MM-DD (동명이인 구분용, 예: '2001-01-01')
         role TEXT NOT NULL CHECK(role IN ('STUDENT', 'ADMIN'))
     );
     """
@@ -63,12 +64,13 @@ def init_db():
     # 4. Seed 데이터 주입 (기본 계정 2개)
     cursor.execute(
         """
-    INSERT OR IGNORE INTO users (id, username, password, name, role)
+    INSERT OR IGNORE INTO users (id, username, password, name, birth_date, role)
     VALUES 
-        (1, 'student1', '1234', '이학생', 'STUDENT'),
-        (2, 'admin1', '1234', '나관리', 'ADMIN');
+        (1, 'student1', '1234', '이학생', '2001-01-01', 'STUDENT'),
+        (2, 'admin1', '1234', '나관리', '1990-01-01', 'ADMIN');
     """
     )
+    
 
     conn.commit()
     conn.close()
