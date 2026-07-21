@@ -1,8 +1,36 @@
 project_root/
 │
-├── 01_config_and_db.ipynb      # [1단계] DB 접속 및 테이블(users, complaints, complaint_likes) DDL/Seed 생성
-├── 02_llm_service.ipynb        # [2단계] LLM 연동, 1,000자 요약 및 비공개/에러(Fallback) 로직 테스트
-├── 03_backend_schemas.ipynb    # [3단계] FastAPI Pydantic DTO (DTO/Validation - 1000자 제한 등)
-├── 04_backend_router.ipynb     # [4단계] FastAPI Router API Endpoints (민원 CRUD, 카테고리 필터, 좋아요)
-└── 05_frontend_mock_ui.ipynb   # [5단계] 프론트엔드 연동용 Mock Data & UI 컴포넌트 상태(State) 로직 시뮬레이션
-└── 06_main_exporter            # [6단계] 모든 `.ipynb` 코드를 `.py` 모듈로 스크립트 자동 변환 및 통합 실행
+├── 01_config_and_db.ipynb      # [1단계] DB 접속 및 테이블 DDL/Seed 생성
+│   ├── DB Connection (SQLite / MySQL) 세팅
+│   ├── users 테이블 생성 (id, username, password, name, role)
+│   ├── complaints 테이블 생성 (id, user_id, category, raw_content, summary, photo_url, status, created_at, updated_at)
+│   ├── complaint_likes 테이블 생성 (complaint_id + user_id 복합 PK)
+│   └── Seed 데이터 주입 (student1, admin1 계정 사전 등록)
+│
+├── 02_llm_service.ipynb        # [2단계] LLM 연동, 요약 및 예외(Fallback) 처리
+│   ├── LLM API 연동 및 100자 요약 / 개인정보 마스킹 로직
+│   ├── 기타(비공개) 분기 조건문 (API Skip -> "비공개 민원입니다." 즉시 반환, 비용/시간 0원)
+│   └── try-except 타임아웃/오류 예외 처리 (Fallback: "LLM 응답 지연으로 기본 요약문이 생성되었습니다")
+│
+├── 03_backend_schemas.ipynb    # [3단계] FastAPI Pydantic DTO & Validation
+│   ├── raw_content 최대 1,000자 제한 유효성 검사 (400 Bad Request 방어)
+│   ├── 민원 작성 / 요약 / 상태 변경 Request/Response DTO 정의
+│   └── summary 초기 기본값 ("요약 내용이 없습니다.") 데이터 타입 검증
+│
+├── 04_backend_router.ipynb     # [4단계] FastAPI Router API Endpoints
+│   ├── CORS 설정 (allow_origins=["*"])
+│   ├── POST /api/complaints/summarize (요약 미리보기 API)
+│   ├── POST /api/complaints (민원 최종 제출 API)
+│   ├── GET /api/complaints (7개 카테고리 필터링 & '더보기' 목록 조회)
+│   ├── POST /api/complaints/{id}/like (1인 1회 공감 단방향 등록, 중복 차단)
+│   └── PATCH /api/complaints/{id}/status (관리자 상태 변경: 접수/처리 중/처리 완료/승인 거절)
+│
+├── 05_frontend_mock_ui.ipynb   # [5단계] 프론트엔드 UI 컴포넌트 & 상태 로직 시뮬레이션
+│   ├── useState 기반 rawContent, summary, category 상태 관리 검증
+│   ├── isReadOnly 모드별 버튼 조건부 렌더링 ([🚀 최종 제출하기] vs 관리자 상태 변경 버튼 4종)
+│   ├── 알약 뱃지(Badge) UI 상태/카테고리 매핑 테스트
+│   └── 공감 버튼 클릭 시 [👍 공감 완료] (disabled) 단방향 상태 변경 검증
+│
+└── 06_main_exporter.ipynb      # [6단계] `.ipynb` -> `.py` 자동 변환 및 통합 실행
+    ├── nbconvert 활용 .ipynb 모듈의 .py 스크립트 자동 Export
+    └── FastAPI 통합 서버 구동 스크립트 (uvicorn execution)
