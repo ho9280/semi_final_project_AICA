@@ -24,9 +24,8 @@ def summarize_complaint(
     """
 
     # 1. [최우선 예외 조건] 비공개 카테고리인 경우: API 호출 없이 0초 만에 멘트 고정 반환 (비용 0원)
-    private_categories = ["기타", "기타(비공개)", "기타 (비공개 필수)"]
-    if category in private_categories:
-        print("[Log] '기타(비공개)' 카테고리 감지 -> LLM API 호출을 Skip합니다.")
+    if category == "비공개 - 기타":
+        print("[Log] '비공개 - 기타' 카테고리 감지 -> LLM API 호출을 Skip합니다.")
         return "비공개 민원입니다."
 
     # 2. API Key 확인 (인자로 들어온 키 > 환경변수 키)
