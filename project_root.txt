@@ -34,3 +34,33 @@ project_root/
 └── 06_main_exporter.ipynb      # [6단계] `.ipynb` -> `.py` 자동 변환 및 통합 실행
     ├── nbconvert 활용 .ipynb 모듈의 .py 스크립트 자동 Export
     └── FastAPI 통합 서버 구동 스크립트 (uvicorn execution)
+
+
+    ----
+
+최종 가동 파이프라인 정립
+[5단계] 05_main.ipynb (백엔드 서버 완결):
+
+FastAPI 메인 앱 생성
+
+CORS 미들웨어 적용 (프론트 통신 허용)
+
+4단계 라우터 연동 (/api/complaints)
+
+Uvicorn 서버 가동 및 /docs Swagger 테스트
+
+[6단계] 06_frontend_ui.ipynb 또는 index.html (프론트엔드 UI 및 API 연동):
+
+민원 작성 폼 (AI 요약 버튼 포함)
+
+민원 피드 게시판 (카테고리 필터, 단방향 공감 하트 버튼, 상태 표시)
+
+관리자 상태 변경 모달
+
+
+
+📁 semi_final_project_AICA/
+├── database.py           # 1단계 (DB 테이블 생성 및 connection)
+├── schemas.py            # 3단계 (Pydantic DTO 정의)
+├── router.py             # 2단계 요약 + 4단계 라우터 엔드포인트
+└── main.py               # 5단계 (FastAPI 메인 앱, CORS, Uvicorn 서버)
