@@ -1,0 +1,126 @@
+<style>
+  body{background:#fafafa;color:#1f2328;font-family:system-ui,'Malgun Gothic',sans-serif;
+       max-width:900px;margin:0 auto;padding:2rem 1rem;line-height:1.6}
+  h1{border-bottom:1px solid #ddd;padding-bottom:.5rem}
+  h2{margin-top:2.2rem}
+  .action{background:#fdecec;border-left:4px solid #d64545;padding:1rem;border-radius:6px}
+  .box{display:inline-block;border:1px solid #4a90d9;border-radius:6px;padding:.5rem 1rem;margin:.3rem;background:#fff}
+  .box.store{border-color:#8a5cf6}
+  .box.entry{border-color:#15803d}
+  .arrow{color:#888;margin:0 .5rem;font-weight:bold}
+  .flow{background:#fff;border:1px solid #eee;border-radius:8px;padding:1rem;text-align:center;overflow-x:auto;white-space:nowrap}
+  table{border-collapse:collapse;width:100%;background:#fff}
+  td,th{border-bottom:1px solid #ddd;padding:.5rem;text-align:left;vertical-align:top}
+  th{background:#f4f4f4}
+  code{background:#f0f0f0;padding:.1rem .3rem;border-radius:4px;font-size:.92em}
+  .ok{color:#15803d;font-weight:600}
+  .todo{color:#b45309;font-weight:600}
+  .warn{color:#b91c1c;font-weight:600}
+  .tag{display:inline-block;font-size:.75rem;padding:.1rem .5rem;border-radius:10px;background:#eee;margin-left:.4rem}
+  .tag.done{background:#dcfce7;color:#15803d}
+  .tag.uncommitted{background:#fef3c7;color:#92400e}
+  ul{padding-left:1.3rem}
+  .example{background:#fff;border:1px solid #eee;border-radius:6px;padding:.6rem .9rem;margin:.4rem 0}
+  .example .q{color:#4a90d9;font-weight:600}
+  .example .a{color:#333}
+</style>
+
+<h1>🍱 메뉴(식단) Agent MVP — 진행 브리핑</h1>
+<p style="color:#666">2026-07-22 · 브랜치 <code>menu-SJ</code></p>
+
+<h2>TL;DR</h2>
+<ul>
+  <li>식단표 이미지 → OCR → 구조화 → 임베딩 → 저장 → 질문 응답까지 <b>전체 파이프라인이 동작</b>한다 (직접 확인 완료).</li>
+  <li>단위 테스트 <b>43개 전부 통과</b> (<code>uv run pytest tests/menu -q</code>).</li>
+  <li>샘플 데이터(3개 업체 × 5일치)를 시딩하고 4가지 예시 질문에 정상 답변을 받았다.</li>
+  <li>커밋은 1단계(OCR 기본 구조)까지만 되어 있고, 2단계(파서·임베딩·저장·질문응답) 코드는 <b>아직 커밋되지 않음</b>.</li>
+  <li>README 문서화는 아직 하지 않음.</li>
+</ul>
+
+<h2>🔴 지금 해야 할 일</h2>
+<div class="action">
+  <ul>
+    <li><b>커밋 필요</b> — <code>menu_agent.py</code>, <code>menu_embedding.py</code>, <code>menu_parser.py</code>, <code>menu_repository.py</code>, <code>seed_sample_data.py</code>, 관련 테스트 4개, <code>data/</code> 샘플 데이터가 전부 <b>untracked 상태</b>. 지금 컴퓨터가 꺼지거나 브랜치를 옮기면 이 작업 전체가 사라질 수 있음. <code>git add app/menu tests/menu data</code> 후 커밋 권장.</li>
+    <li><b>README 문서화 안 됨</b> — 원래 지침서(<code>menu_agent_claude_context.md</code>)에서 요구한 실행 방법 문서(README)가 아직 없음. 다른 팀원이 이 코드를 실행하려면 필요.</li>
+    <li>결정 필요 없음 — 그 외에는 사용자 승인/입력 대기 항목 없음.</li>
+  </ul>
+</div>
+
+<h2>무엇이 만들어졌나</h2>
+<p>메뉴 질문에 답하는 파이프라인을 6개 모듈로 나눠 구현했다. 화살표 순서대로 실제 데이터가 흐른다.</p>
+
+<div class="flow">
+  <span class="box">식단표 이미지<br><small>data/menu/*.png</small></span>
+  <span class="arrow">→</span>
+  <span class="box">menu_ocr.py<br><small>OCR (Mock / Tesseract)</small><span class="tag done">1단계 커밋됨</span></span>
+  <span class="arrow">→</span>
+  <span class="box">menu_parser.py<br><small>날짜·요일·메뉴 구조화</small></span>
+  <span class="arrow">→</span>
+  <span class="box store">menu_embedding.py<br><small>해싱 TF 벡터 + JSON 벡터스토어</small></span>
+</div>
+<div class="flow" style="margin-top:.6rem">
+  <span class="box entry">menu_repository.py<br><small>SQLite 저장·조건 조회</small></span>
+  <span class="arrow">→</span>
+  <span class="box">menu_agent.py<br><small>query_menu() — 질문 분석 + 응답 조립</small></span>
+  <span class="arrow">→</span>
+  <span class="box">사용자 답변 + 원본 이미지 경로</span>
+</div>
+
+<table style="margin-top:1rem">
+  <tr><th>모듈</th><th>역할</th></tr>
+  <tr><td><code>config.py</code></td><td>업체(대성/KT/KT샐러드) 정의, 데이터·DB 경로 등 공통 설정</td></tr>
+  <tr><td><code>menu_ocr.py</code></td><td>이미지 → 텍스트. <code>MockOCRProvider</code>(테스트용)와 <code>TesseractOCRProvider</code> 둘 다 지원</td></tr>
+  <tr><td><code>menu_parser.py</code></td><td>OCR 원문을 업체/날짜/요일/식사종류/메뉴목록 구조로 정리</td></tr>
+  <tr><td><code>menu_embedding.py</code></td><td>메뉴 텍스트를 해싱 트릭 TF 벡터(256차원)로 변환, JSON 파일 기반 벡터스토어에 저장·코사인 유사도 검색</td></tr>
+  <tr><td><code>menu_repository.py</code></td><td>구조화된 식단을 SQLite(<code>data/menu/menu.db</code>)에 저장, 업체/날짜 조건 조회, upsert로 중복 방지</td></tr>
+  <tr><td><code>menu_agent.py</code></td><td>질문에서 업체·날짜·요일 추출 → 조건검색 우선, 필요시 벡터검색 보조 → <code>query_menu()</code> 최종 응답 반환</td></tr>
+  <tr><td><code>seed_sample_data.py</code></td><td>샘플 이미지 3종을 실제로 OCR→저장까지 실행해 DB/벡터스토어를 채우는 스크립트</td></tr>
+</table>
+
+<h3>임베딩·벡터DB 선택에 대한 참고</h3>
+<p>Pinecone·sentence-transformers 같은 외부 모델/유료 서비스 대신, <b>해싱 트릭 기반 단어빈도 벡터</b> + <b>직접 구현한 JSON 벡터스토어</b>를 사용했다. 인터넷 연결이나 모델 다운로드가 필요 없고 결정적으로 동작하지만, 실제 "의미" 이해가 아니라 "단어 겹침" 수준의 유사도라는 한계가 있다 (코드 내 주석으로 명시됨). 나중에 필요하면 <code>VectorStore</code> 클래스만 chromadb 등으로 교체 가능하게 설계되어 있다.</p>
+
+<h2>어떻게 동작하나 — 예시 시나리오</h2>
+<p>샘플 데이터를 시딩(<code>uv run python -m app.menu.seed_sample_data</code>)한 뒤 아래 4가지 질문을 실제로 넣어 확인했다.</p>
+
+<div class="example"><div class="q">Q. 오늘 KT 메뉴 뭐야?</div><div class="a">A. 오늘 KT 점심 메뉴는 제육볶음, 미역국, 배추김치입니다. <span style="color:#888">(업체+날짜 정확 → 조건검색)</span></div></div>
+<div class="example"><div class="q">Q. 내일 대성학원 점심 알려줘</div><div class="a">A. 내일 대성학원 점심 메뉴는 김치볶음밥, 계란후라이, 단무지입니다.</div></div>
+<div class="example"><div class="q">Q. KT 샐러드 메뉴 알려줘</div><div class="a">A. 업체만 지정되어 등록된 여러 날짜의 메뉴를 나열해 응답 (2026-07-20 월요일부터 순서대로)</div></div>
+<div class="example"><div class="q">Q. 이번 주에 돈가스 나오는 날이 언제야?</div><div class="a">A. 2026-07-22 대성학원 점심 메뉴는 돈가스, 스프, 양배추샐러드입니다. <span style="color:#888">(업체/날짜 미지정 → 의미검색으로 매칭)</span></div></div>
+
+<h2>변경 파일 맵</h2>
+<table>
+  <tr><th>경로</th><th>상태</th><th>역할 / 왜 바뀌었나</th></tr>
+  <tr><td><code>app/menu/menu_ocr.py</code>, <code>config.py</code>, <code>__init__.py</code></td><td><span class="tag done">커밋됨 (e3e32b2)</span></td><td>1단계: OCR 기본 구조 (이미 완료된 기반)</td></tr>
+  <tr><td><code>app/menu/menu_parser.py</code></td><td><span class="tag uncommitted">미커밋</span></td><td>OCR 원문 → 구조화된 식단 데이터 변환</td></tr>
+  <tr><td><code>app/menu/menu_embedding.py</code></td><td><span class="tag uncommitted">미커밋</span></td><td>텍스트 임베딩 + 로컬 벡터스토어(JSON) 저장/검색</td></tr>
+  <tr><td><code>app/menu/menu_repository.py</code></td><td><span class="tag uncommitted">미커밋</span></td><td>SQLite 기반 식단 저장소, 조건 조회, 중복 방지</td></tr>
+  <tr><td><code>app/menu/menu_agent.py</code></td><td><span class="tag uncommitted">미커밋</span></td><td>질문 분석 + <code>query_menu()</code> / <code>register_menu_image()</code> — 전체 흐름 연결하는 최종 함수</td></tr>
+  <tr><td><code>app/menu/seed_sample_data.py</code></td><td><span class="tag uncommitted">미커밋</span></td><td>샘플 이미지를 실제로 등록해 DB/벡터스토어를 채우는 실행 스크립트</td></tr>
+  <tr><td><code>tests/menu/test_menu_parser.py</code>, <code>test_menu_embedding.py</code>, <code>test_menu_repository.py</code>, <code>test_menu_agent.py</code></td><td><span class="tag uncommitted">미커밋</span></td><td>위 4개 모듈에 대한 단위 테스트</td></tr>
+  <tr><td><code>data/</code> (이미지, <code>menu.db</code>, <code>vector_store.json</code>)</td><td><span class="tag uncommitted">미커밋</span></td><td>3개 업체 × 5일치 샘플 식단 이미지 및 시딩된 실 데이터</td></tr>
+  <tr><td><code>menu_agent_claude_context.md</code></td><td><span class="tag uncommitted">미커밋</span></td><td>이번 구현을 지시한 작업 지침서 (참고 문서)</td></tr>
+</table>
+
+<h2>검증 상태</h2>
+<table>
+  <tr><th>항목</th><th>상태</th></tr>
+  <tr><td>단위 테스트 43개 (파서/임베딩/저장소/에이전트/OCR)</td><td><span class="ok">✔ 전부 통과</span></td></tr>
+  <tr><td>샘플 데이터 시딩 (3개 업체)</td><td><span class="ok">✔ 확인됨</span> — 각 5건씩 등록</td></tr>
+  <tr><td><code>query_menu()</code> 실제 질의 4종</td><td><span class="ok">✔ 확인됨</span> — 모두 의도한 답변 반환</td></tr>
+  <tr><td>실제 손글씨/사진 식단표로 OCR 정확도</td><td><span class="todo">✘ 미검증</span> — 현재 샘플은 Mock OCR 기반 텍스트 파일(.txt)에서 나온 데이터로 보임 (실 OCR 정확도 테스트 안 됨)</td></tr>
+  <tr><td>README / 실행 문서</td><td><span class="todo">✘ 없음</span></td></tr>
+</table>
+<p style="color:#666">직접 재현하려면:</p>
+<pre style="background:#fff;border:1px solid #eee;border-radius:6px;padding:.7rem;overflow-x:auto"><code>uv run pytest tests/menu -q
+uv run python -m app.menu.seed_sample_data
+uv run python -c "from app.menu.menu_agent import query_menu; print(query_menu('오늘 KT 메뉴 뭐야?'))"</code></pre>
+
+<h2>미완·다음 단계</h2>
+<ul>
+  <li>2단계 코드 전체가 아직 <b>git에 커밋되지 않음</b> — 최우선 처리 필요.</li>
+  <li>README에 실행법·환경설정·한계 문서화 (지침서에서 요구했던 항목, 아직 미착수).</li>
+  <li>실제 Tesseract OCR 경로로 진짜 이미지(손글씨/사진 식단표)를 넣었을 때의 정확도 검증 — 현재는 Mock 데이터 위주로만 확인됨.</li>
+  <li>대성학원/KT/KT샐러드 각 업체별 OCR 결과 포맷이 다를 경우의 파서 보완 (지침서에서 "완벽한 범용 파서는 만들지 말라"고 명시했으므로, 실 데이터로 확인 후 점진적 보완 필요).</li>
+  <li>LangGraph Router 등 상위 시스템과의 실제 연동은 이번 범위에서 제외됨 (의도된 것).</li>
+</ul>
