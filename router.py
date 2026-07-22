@@ -127,13 +127,24 @@ def get_complaints(
         rows = cursor.fetchall()
         result = []
         for row in rows:
+            # 1. 비공개 - 기타 카테고리인 경우 summary 고정 출력 처리
+            display_summary = row["summary"]
+            if row["category"] == "비공개 - 기타":
+                display_summary = "비공개 민원입니다."
+
+            # 2. (보안 강화) 작성자 본인이거나 관리자가 아니면 원문 비공개 처리
+            display_raw_content = row["raw_content"]
+            if row["category"] == "비공개 - 기타" and row["user_id"] != current_user_id:
+                # 필요 시 관리자 검증 로직 추가 가능 (기존 조회 파라미터 기반)
+                display_raw_content = "비공개 처리된 민원 원문입니다."
+
             result.append(
                 ComplaintResponse(
                     id=row["id"],
                     user_id=row["user_id"],
                     category=row["category"],
-                    raw_content=row["raw_content"],
-                    summary=row["summary"],
+                    raw_content=display_raw_content,
+                    summary=display_summary,
                     photo_url=row["photo_url"],
                     status=row["status"],
                     like_count=row["like_count"],
@@ -245,3 +256,18 @@ def update_complaint_status(complaint_id: int, req: StatusUpdateRequest):
         conn.close()
 
 
+@router.get("/users", response_model=List[dict])
+def get_users(role: Optional[str] = Query(None, description="역할 필터 (STUDENT 또는 ADMIN)")):
+    """역할에 따른 유저 목록 동적 반환 API"""
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        if role:
+            cursor.execute("SELECT id, username, name, role FROM users WHERE role = ?", (role.upper(),))
+        else:
+            cursor.execute("SELECT id, username, name, role FROM users")
+        
+        rows = cursor.fetchall()
+        return [{"id": r["id"], "username": r["username"], "name": r["name"], "role": r["role"]} for r in rows]
+    finally:
+        conn.close()
