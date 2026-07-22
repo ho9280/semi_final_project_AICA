@@ -46,7 +46,7 @@
                 <label>👤 권한: </label>
                 <select id="userRole" onchange="switchRole()">
                     <option value="1">학생 1 (user_id: 1)</option>
-                    <option value="admin">관리자 (user_id: 99)</option>
+                    <option value="admin">관리자 (user_id: 2)</option>
                 </select>
                 <!-- 요구사항 3: 목록 화면 내 게시글 작성 버튼 -->
                 <button onclick="openWriteModal()" style="margin-left: 10px; padding: 8px 14px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
@@ -130,7 +130,7 @@
     function switchRole() {
         const val = document.getElementById('userRole').value;
         if (val === 'admin') {
-            currentUserData = { id: 99, role: 'admin' };
+            currentUserData = { id: 2, role: 'admin' };
             document.getElementById('summary').readOnly = true;
         } else {
             currentUserData = { id: parseInt(val), role: 'student' };
