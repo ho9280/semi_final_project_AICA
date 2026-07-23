@@ -5,6 +5,7 @@
 """
 
 import operator
+from pathlib import Path
 from typing import Annotated, Dict, Any, Literal, List
 from typing_extensions import TypedDict
 from pydantic import BaseModel, Field
@@ -12,6 +13,22 @@ from fastapi import FastAPI, HTTPException
 from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage, AIMessage
 from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
+
+# -----------------------------------------------------------------------------
+# 0. 출결 규정 및 지원비 MD 파일 로드 (Direct Context)
+# -----------------------------------------------------------------------------
+BASE_DIR = Path(__file__).resolve().parent
+
+def load_md_file(filename: str) -> str:
+    file_path = BASE_DIR / filename
+    if file_path.exists():
+        return file_path.read_text(encoding="utf-8")
+    return ""
+
+# 파일 내용을 미리 읽어 전역 변수로 할당 (서버 시작 시 1회 로드)
+ATTENDANCE_RULES_TEXT = load_md_file("aica_attendance_rules.md")
+FINANCIAL_SUPPORT_TEXT = load_md_file("aica_financial_support.md")
+COMBINED_CONTEXT = f"{ATTENDANCE_RULES_TEXT}\n\n{FINANCIAL_SUPPORT_TEXT}"
 
 # -----------------------------------------------------------------------------
 # 1. Pydantic DTO (Data Transfer Objects)
@@ -93,19 +110,21 @@ def node_calculator_popup(state: AgentState) -> Dict[str, Any]:
     return {"messages": [AIMessage(content=msg_text)], "response_signal": signal}
 
 def node_rag_rule(state: AgentState) -> Dict[str, Any]:
-    """규정 질문 시 Vector DB RAG를 수행하여 답변을 반환하는 노드"""
+    """규정 질문 시 MD 파일 전역 컨텍스트를 활용하여 답변을 반환하는 노드"""
     messages = state.get("messages", [])
     user_query = messages[-1].content
     
-    # [추론] 실제 환경에서는 retriever.invoke(user_query) 가 호출됨
-    retrieved_context = "출결 규정에 따르면 공가 한도는 총 교육일수의 20% 이내이며, 질병의 경우 진료확인서를 제출해야 합니다." 
+    # 하드코딩 문장 대신 읽어둔 MD 파일 전체 컨텍스트를 직접 할당
+    retrieved_context = COMBINED_CONTEXT if COMBINED_CONTEXT else "출결 규정을 불러올 수 없습니다."
     
     rag_prompt = (
-        "당신은 출결 담당 Agent입니다. 다음 [Context]를 바탕으로 질문에 답변하세요.\n"
+        "당신은 인공지능사관학교 7기 출결 담당 Agent입니다.\n"
+        "반드시 아래 [Context]에 적힌 정확한 숫자, 기준, 제출 서류 명칭만을 근거로 답변하세요.\n"
+        "일반론이나 추측성 답변('보통~', '기관에 확인해야~')은 절대로 하지 마세요.\n\n"
         "답변 첫 줄에 반드시 '출결 관련 질문으로 안내드릴게요.'를 포함하세요.\n"
         "답변 마지막에 반드시 '자세한 내용은 공지사항 게시판에서 확인해 주세요.'를 포함하세요.\n"
         "절대로 URL, 하이퍼링크, 다운로드 링크를 생성하거나 [원문보기] 버튼을 만들지 마세요.\n\n"
-        f"[Context]: {retrieved_context}"
+        f"[Context]:\n{retrieved_context}"
     )
     
     response = llm.invoke([SystemMessage(content=rag_prompt), HumanMessage(content=str(user_query))])
