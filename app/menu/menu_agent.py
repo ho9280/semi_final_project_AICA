@@ -15,7 +15,14 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
 
-from app.menu.config import KST, MEAL_TYPES, ORGANIZATIONS, WEEKDAYS
+from app.menu.config import (
+    DEFAULT_MEAL_TYPE,
+    DEFAULT_ORGANIZATION_CODES,
+    KST,
+    MEAL_TYPES,
+    ORGANIZATIONS,
+    WEEKDAYS,
+)
 from app.menu.menu_embedding import VectorStore
 from app.menu.menu_ocr import MockOCRProvider, OCRProvider
 from app.menu.menu_parser import parse_ocr_text
@@ -126,8 +133,14 @@ def _date_phrase(filters: QueryFilters, today: date) -> str:
     return "요청하신"
 
 
-def _build_answer(filters: QueryFilters, results: list[dict], today: date) -> str:
+def _build_answer(
+    filters: QueryFilters, results: list[dict], today: date, search_mode: str
+) -> str:
     if not results:
+        if search_mode == "condition":
+            # 날짜(또는 요일) 조건으로 조회했는데 결과가 없는 경우.
+            # 다른 날짜의 메뉴로 대체하지 않고, 정해진 안내 문구만 반환한다.
+            return "해당 날짜에는 등록된 식단이 없습니다."
         org_phrase = f" {filters.organization_display}" if filters.organization_display else ""
         return f"{_date_phrase(filters, today)}{org_phrase} 식단 정보가 등록되어 있지 않습니다."
 
@@ -164,19 +177,38 @@ def query_menu(
     try:
         filters = parse_query(query, today=today)
 
+        # 끼니를 지정하지 않으면 중식(점심)을 기본값으로 사용한다.
+        meal_type = filters.meal_type or DEFAULT_MEAL_TYPE
+
+        if filters.organization_code is not None:
+            # 사용자가 업체를 명시한 경우 (예: "샐러드", "KT 샐러드"도 여기서 처리되어
+            # KT 샐러드가 조회 대상에 포함된다).
+            org_display_list = [filters.organization_display]
+        else:
+            # 업체 미지정 시 기본값은 대성학원 + KT이며, KT 샐러드는 제외한다.
+            org_display_list = [
+                ORGANIZATIONS[code]["display_name"] for code in DEFAULT_ORGANIZATION_CODES
+            ]
+
         if filters.menu_date or filters.weekday:
             # 업체/날짜(또는 요일)가 명확하므로 조건 검색을 우선 사용한다.
-            raw_results = repository.get_by_condition(
-                organization=filters.organization_display,
-                menu_date=filters.menu_date,
-                weekday=filters.weekday,
-                meal_type=filters.meal_type,
-            )
+            # 해당 조건에 데이터가 없어도 다른 날짜로 대체하지 않는다.
+            raw_results = []
+            for org_display in org_display_list:
+                raw_results.extend(
+                    repository.get_by_condition(
+                        organization=org_display,
+                        menu_date=filters.menu_date,
+                        weekday=filters.weekday,
+                        meal_type=meal_type,
+                    )
+                )
+            search_mode = "condition"
         else:
             # 명확한 날짜/요일이 없으므로 의미 검색으로 보조한다.
             metadata_filter = (
                 {"organization": filters.organization_display}
-                if filters.organization_display
+                if filters.organization_code is not None
                 else None
             )
             hits = vector_store.search(query, top_k=5, metadata_filter=metadata_filter)
@@ -185,11 +217,19 @@ def query_menu(
                 if hit["score"] <= 0:
                     continue
                 entry = repository.get_by_id(hit["id"])
-                if entry:
-                    raw_results.append(entry)
+                if not entry:
+                    continue
+                # 업체 미지정 기본 결과에서는 KT 샐러드를 제외한다.
+                if (
+                    filters.organization_code is None
+                    and entry["organization"] == ORGANIZATIONS["kt_salad"]["display_name"]
+                ):
+                    continue
+                raw_results.append(entry)
+            search_mode = "semantic"
 
         results = [_strip_internal_fields(r) for r in raw_results]
-        answer = _build_answer(filters, results, today)
+        answer = _build_answer(filters, results, today, search_mode)
 
         return {
             "success": len(results) > 0,

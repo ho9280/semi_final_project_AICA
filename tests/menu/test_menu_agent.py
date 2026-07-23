@@ -175,9 +175,87 @@ def test_query_menu_no_results_returns_failure_structure(tmp_path, repo, vector_
 
     assert result["success"] is False
     assert result["results"] == []
-    assert "등록되어 있지 않습니다" in result["answer"]
+    assert result["answer"] == "해당 날짜에는 등록된 식단이 없습니다."
 
 
 def test_query_menu_always_returns_same_shape_keys(tmp_path, repo, vector_store):
     result = query_menu("아무 의미 없는 질문", repository=repo, vector_store=vector_store, today=TODAY)
     assert set(result.keys()) == {"success", "query", "results", "answer"}
+
+
+# ---------- 6단계: 기본 조회 조건 및 예외 처리 ----------
+
+
+def test_query_menu_defaults_meal_type_to_lunch_when_unspecified(tmp_path, repo, vector_store):
+    image = _write_sample_image(
+        tmp_path, "kt_menu", "2026-07-22 수요일 점심: 제육볶음, 미역국, 배추김치"
+    )
+    register_menu_image(image, "kt", repository=repo, vector_store=vector_store)
+
+    # "끼니"를 언급하지 않아도 중식(점심)이 기본값으로 적용되어 조회되어야 한다.
+    result = query_menu("오늘 KT 메뉴 뭐야?", repository=repo, vector_store=vector_store, today=TODAY)
+
+    assert result["success"] is True
+    assert result["results"][0]["meal_type"] == "점심"
+
+
+def test_query_menu_without_organization_returns_daesung_and_kt_only(tmp_path, repo, vector_store):
+    kt_image = _write_sample_image(
+        tmp_path, "kt_menu", "2026-07-22 수요일 점심: 제육볶음, 미역국, 배추김치"
+    )
+    daesung_image = _write_sample_image(
+        tmp_path, "daesung_menu", "2026-07-22 수요일 점심: 돈가스, 스프, 양배추샐러드"
+    )
+    salad_image = _write_sample_image(
+        tmp_path, "salad_menu", "2026-07-22 수요일 점심: 닭가슴살샐러드, 고구마"
+    )
+    register_menu_image(kt_image, "kt", repository=repo, vector_store=vector_store)
+    register_menu_image(daesung_image, "daesung", repository=repo, vector_store=vector_store)
+    register_menu_image(salad_image, "kt_salad", repository=repo, vector_store=vector_store)
+
+    result = query_menu("오늘 식단 알려줘.", repository=repo, vector_store=vector_store, today=TODAY)
+
+    orgs = {r["organization"] for r in result["results"]}
+    assert orgs == {"KT", "대성학원"}
+    assert "KT 샐러드" not in orgs
+
+
+def test_query_menu_returns_salad_only_when_explicitly_requested(tmp_path, repo, vector_store):
+    salad_image = _write_sample_image(
+        tmp_path, "salad_menu", "2026-07-22 수요일 점심: 닭가슴살샐러드, 고구마"
+    )
+    kt_image = _write_sample_image(
+        tmp_path, "kt_menu", "2026-07-22 수요일 점심: 제육볶음, 미역국, 배추김치"
+    )
+    register_menu_image(salad_image, "kt_salad", repository=repo, vector_store=vector_store)
+    register_menu_image(kt_image, "kt", repository=repo, vector_store=vector_store)
+
+    result = query_menu(
+        "오늘 KT 샐러드 메뉴 알려줘.", repository=repo, vector_store=vector_store, today=TODAY
+    )
+
+    assert result["success"] is True
+    assert len(result["results"]) == 1
+    assert result["results"][0]["organization"] == "KT 샐러드"
+
+
+def test_query_menu_does_not_fallback_to_other_date(tmp_path, repo, vector_store):
+    # 7/23(내일) 메뉴만 등록하고 "오늘" 메뉴를 조회하면, 다른 날짜 메뉴로 대체되면 안 된다.
+    image = _write_sample_image(
+        tmp_path, "kt_menu", "2026-07-23 목요일 점심: 돈까스, 우동, 단무지"
+    )
+    register_menu_image(image, "kt", repository=repo, vector_store=vector_store)
+
+    result = query_menu("오늘 KT 메뉴 뭐야?", repository=repo, vector_store=vector_store, today=TODAY)
+
+    assert result["success"] is False
+    assert result["results"] == []
+    assert result["answer"] == "해당 날짜에는 등록된 식단이 없습니다."
+
+
+def test_query_menu_no_data_message_for_default_organizations(tmp_path, repo, vector_store):
+    result = query_menu("오늘 식단 알려줘.", repository=repo, vector_store=vector_store, today=TODAY)
+
+    assert result["success"] is False
+    assert result["results"] == []
+    assert result["answer"] == "해당 날짜에는 등록된 식단이 없습니다."

@@ -48,3 +48,10 @@ ORGANIZATIONS: dict[str, dict] = {
 }
 
 MEAL_TYPES = ["아침", "점심", "저녁"]
+
+# 사용자가 끼니를 지정하지 않았을 때 사용하는 기본값(중식 = 점심).
+DEFAULT_MEAL_TYPE = "점심"
+
+# 사용자가 식당(업체)을 지정하지 않았을 때 기본으로 함께 조회할 업체.
+# KT 샐러드는 사용자가 명시적으로 언급한 경우에만 조회한다.
+DEFAULT_ORGANIZATION_CODES = ["daesung", "kt"]
