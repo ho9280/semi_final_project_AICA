@@ -6,3 +6,7 @@ secrets.yml
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# 메뉴 Agent가 로컬에서 생성하는 DB/벡터 스토어 (팀원마다 로컬에서 생성)
+data/menu/menu.db
+data/menu/vector_store.json

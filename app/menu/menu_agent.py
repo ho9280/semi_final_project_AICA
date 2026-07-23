@@ -1,11 +1,15 @@
-"""메뉴 질문 처리의 전체 흐름을 연결하는 모듈.
+"""메뉴 질문(챗봇) 처리의 전체 흐름을 연결하는 모듈.
 
 질문 분석 -> (조건 검색 또는 의미 검색) -> 결과 정리 -> 답변 텍스트 생성까지
-한 번에 처리하는 ``query_menu()``가 이 모듈의 핵심이다. 다른 Agent나
-FastAPI 라우터, LangGraph Router가 호출할 진입점으로 설계했다.
+한 번에 처리하는 ``query_menu()``가 이 모듈의 핵심이다. 최종 정의서 기준으로
+챗봇 질문(이 모듈)과 대시보드 시간 자동 표시(``menu_tool.get_current_menu()``)는
+서로 다른 기본값 규칙을 쓰므로 분리되어 있다: 챗봇은 끼니를 지정하지 않으면
+현재 시각과 무관하게 항상 "점심"을 기본값으로 쓴다.
 
-또한 관리자가 새 식단표 이미지를 등록할 때 쓰는 ``register_menu_image()``도
-제공한다 (OCR -> 구조화 -> SQLite 저장 -> 임베딩 저장까지 한 번에 처리).
+기본 데이터 원본은 SQLite가 아니라 ``menu_file_store.py``가 관리하는
+``data/menu/`` 폴더의 이미지 + .txt(sidecar)이다. ``menu_repository.py``(SQLite)는
+삭제하지 않고 호환용으로 남아 있지만 ``query_menu()``의 기본 실행 경로에서는
+쓰지 않는다 (``register_menu_image()``만 SQLite 등록용으로 계속 제공한다).
 """
 
 from __future__ import annotations
@@ -18,13 +22,13 @@ from pathlib import Path
 from app.menu.config import (
     DEFAULT_MEAL_TYPE,
     DEFAULT_ORGANIZATION_CODES,
-    DINNER_ORGANIZATION_CODES,
     KST,
     MEAL_TYPE_SYNONYMS,
     ORGANIZATIONS,
     WEEKDAYS,
 )
-from app.menu.menu_embedding import VectorStore
+from app.menu.menu_embedding import VectorStore, get_vector_store
+from app.menu.menu_file_store import MenuFileStore, get_store
 from app.menu.menu_ocr import MockOCRProvider, OCRProvider
 from app.menu.menu_parser import parse_ocr_text
 from app.menu.menu_repository import MenuRepository
@@ -35,11 +39,6 @@ _DATE_PATTERN = re.compile(r"(\d{4})[-./년]\s*(\d{1,2})[-./월]\s*(\d{1,2})일?
 # "이번 주에 돈가스 나오는 날이 언제야?" 처럼 특정 메뉴가 나오는 날짜 자체를 묻는
 # 질문인지 판단하는 키워드. 이런 질문은 조건 검색이 아니라 의미 검색으로 처리한다.
 _SEMANTIC_INTENT_KEYWORDS = ["언제", "나오는", "나온다", "나와"]
-
-# 사용자가 끼니를 직접 말하지 않았을 때 현재 시각으로 끼니/날짜 기본값을 정하는 기준.
-_LUNCH_WINDOW_START_HOUR = 0
-_DINNER_WINDOW_START_HOUR = 13
-_NEXT_DAY_WINDOW_START_HOUR = 19
 
 
 def get_now_kst() -> datetime:
@@ -132,53 +131,80 @@ def parse_query(query: str, today: date | None = None) -> QueryFilters:
     )
 
 
-def _resolve_meal_type(filters: QueryFilters, now: datetime) -> str:
-    """사용자가 끼니를 지정하지 않았을 때 현재 시각으로 기본 끼니를 정한다.
+def _resolve_meal_type(filters: QueryFilters) -> str:
+    """끼니를 지정하지 않으면 현재 시각과 무관하게 항상 중식(점심)을 기본값으로 쓴다.
 
-    00시~13시: 점심 / 13시~19시: 저녁(대성학원) / 19시 이후: 다음 식단 제공일 점심.
-    사용자가 끼니를 직접 말한 경우에는 이 시간대 기본값보다 사용자 요청이 우선한다.
+    시간대별 기본값(00~13시 점심 / 13~19시 저녁 / 19시 이후 다음날 점심)은
+    챗봇이 아니라 대시보드(``menu_tool.get_current_menu()``)에서만 적용된다.
+    사용자가 끼니를 직접 말한 경우에는 그 값을 그대로 쓴다.
     """
-    if filters.meal_type is not None:
-        return filters.meal_type
-
-    hour = now.hour
-    if _LUNCH_WINDOW_START_HOUR <= hour < _DINNER_WINDOW_START_HOUR:
-        return DEFAULT_MEAL_TYPE
-    if _DINNER_WINDOW_START_HOUR <= hour < _NEXT_DAY_WINDOW_START_HOUR:
-        return "저녁"
-    return DEFAULT_MEAL_TYPE
+    return filters.meal_type or DEFAULT_MEAL_TYPE
 
 
-def _resolve_menu_date(filters: QueryFilters, now: datetime, today: date) -> str | None:
+def _resolve_menu_date(filters: QueryFilters, today: date) -> str | None:
     """조건 검색에 사용할 날짜를 정한다.
 
-    사용자가 날짜(오늘/내일/특정 날짜)나 요일을 직접 언급했으면 그대로 쓰고,
+    사용자가 날짜(오늘/내일/특정 날짜)를 직접 언급했으면 그대로 쓰고,
     요일만 언급한 경우에는 요일 조건만으로 조회하도록 날짜를 비워둔다(None).
-    둘 다 없을 때만 시간대 기본값을 적용한다: 19시 이후 + 끼니 미지정이면
-    다음 식단 제공일(내일)의 점심을, 그 외에는 오늘 날짜를 사용한다.
+    둘 다 없으면 항상 오늘 날짜를 사용한다.
     """
     if filters.menu_date:
         return filters.menu_date
     if filters.weekday:
         return None
-
-    if filters.meal_type is None and now.hour >= _NEXT_DAY_WINDOW_START_HOUR:
-        return (today + timedelta(days=1)).isoformat()
     return today.isoformat()
 
 
-def _resolve_organization_codes(filters: QueryFilters, meal_type: str) -> list[str]:
+def _resolve_organization_codes(filters: QueryFilters) -> list[str]:
     """조회 대상 업체 코드를 정한다.
 
-    사용자가 업체를 지정하면 그 업체만, 지정하지 않았고 끼니가 저녁이면
-    저녁을 제공하는 업체(대성학원)만, 그 외에는 기본 업체 조합(대성학원+KT)을 쓴다.
-    KT/KT 샐러드는 저녁 데이터가 없으므로 임의로 포함하지 않는다.
+    사용자가 업체를 지정하면 그 업체만, 지정하지 않으면 기본 업체 조합
+    (대성학원 + KT + KT 샐러드) 전체를 조회한다. KT/KT 샐러드에 저녁 데이터가
+    없으면(끼니가 저녁인 경우) 해당 업체는 결과가 없을 뿐, 대신 다른 메뉴를
+    임의로 채우지 않는다.
     """
     if filters.organization_code is not None:
         return [filters.organization_code]
-    if meal_type == "저녁":
-        return DINNER_ORGANIZATION_CODES
     return DEFAULT_ORGANIZATION_CODES
+
+
+def plan_menu_search(query: str, filters: QueryFilters, today: date) -> dict:
+    """이 질문을 조건 검색으로 처리할지 의미 검색으로 처리할지, 어떤 조건으로
+    검색할지 결정한다. ``query_menu()``와 공개 Menu Tool(``menu_tool.py``)이
+    똑같은 판단 로직을 공유하도록 이 함수 하나로 모아둔다 (로직 중복 방지).
+
+    반환값:
+        {
+            "search_mode": "condition" | "semantic",
+            "organization_codes": list[str] | None,  # semantic이면 None일 수 있음(전체 검색)
+            "menu_date": str | None,
+            "weekday": str | None,
+            "meal_type": str | None,
+        }
+    """
+    if not filters.menu_date and not filters.weekday and _is_semantic_intent(query):
+        # "돈가스 나오는 날이 언제야?" 처럼 날짜 자체를 찾는 질문은 의미 검색으로 처리한다.
+        return {
+            "search_mode": "semantic",
+            "organization_codes": [filters.organization_code] if filters.organization_code else None,
+            "menu_date": None,
+            "weekday": None,
+            "meal_type": filters.meal_type,
+        }
+
+    # 업체/날짜(또는 요일)를 조건 검색으로 조회한다. 끼니를 지정하지 않았다면
+    # 항상 점심을 기본값으로 쓴다(시간대와 무관).
+    meal_type = _resolve_meal_type(filters)
+    menu_date = _resolve_menu_date(filters, today)
+    org_codes = _resolve_organization_codes(filters)
+
+    return {
+        "search_mode": "condition",
+        "organization_codes": org_codes,
+        "menu_date": menu_date,
+        "weekday": filters.weekday,
+        "meal_type": meal_type,
+    }
 
 
 def _strip_internal_fields(entry: dict) -> dict:
@@ -233,33 +259,37 @@ def _build_answer(
 
 def query_menu(
     query: str,
-    repository: MenuRepository | None = None,
+    store: MenuFileStore | None = None,
     vector_store: VectorStore | None = None,
     today: date | None = None,
     now: datetime | None = None,
 ) -> dict:
     """사용자의 메뉴 질문을 처리하고 통일된 결과를 반환한다.
 
-    now: 시간대 기본값(점심/저녁, 다음 식단 제공일) 계산에 쓰는 기준 시각.
-    테스트에서 특정 시각을 고정하고 싶을 때 전달한다. 생략하면 한국 시간
-    기준 현재 시각을 사용한다.
+    store: 원본 데이터를 담고 있는 MenuFileStore. 생략하면 data/menu 폴더 전체를
+        읽어들인 기본 싱글턴을 쓴다(menu.db는 만들지 않는다). 테스트에서는
+        tmp 디렉터리를 가리키는 MenuFileStore를 만들어 주입할 수 있다.
+    vector_store: 의미 검색에만 쓰는 보조 저장소. 생략하면 기본(영구 저장)
+        싱글턴을 쓴다. 정확한 날짜/업체 조회에는 관여하지 않는다.
+    now/today: 기준 시각/날짜. 생략하면 한국 시간 기준 현재 값을 쓴다.
 
     반환값은 항상 다음 형태를 유지한다 (예외가 발생해도 동일).
     {"success": bool, "query": str, "results": list[dict], "answer": str}
     """
-    repository = repository or MenuRepository()
-    vector_store = vector_store or VectorStore()
+    store = store or get_store()
+    vector_store = vector_store or get_vector_store()
     now = now or get_now_kst()
     today = today or now.date()
 
     try:
         filters = parse_query(query, today=today)
+        plan = plan_menu_search(query, filters, today)
+        search_mode = plan["search_mode"]
 
-        if not filters.menu_date and not filters.weekday and _is_semantic_intent(query):
-            # "돈가스 나오는 날이 언제야?" 처럼 날짜 자체를 찾는 질문은 의미 검색으로 처리한다.
+        if search_mode == "semantic":
             metadata_filter = (
                 {"organization": filters.organization_display}
-                if filters.organization_code is not None
+                if plan["organization_codes"]
                 else None
             )
             hits = vector_store.search(query, top_k=5, metadata_filter=metadata_filter)
@@ -267,37 +297,24 @@ def query_menu(
             for hit in hits:
                 if hit["score"] <= 0:
                     continue
-                entry = repository.get_by_id(hit["id"])
-                if not entry:
-                    continue
-                # 업체 미지정 기본 결과에서는 KT 샐러드를 제외한다.
-                if (
-                    filters.organization_code is None
-                    and entry["organization"] == ORGANIZATIONS["kt_salad"]["display_name"]
-                ):
-                    continue
-                raw_results.append(entry)
-            search_mode = "semantic"
+                entry = store.get_by_id(hit["id"])
+                if entry:
+                    raw_results.append(entry)
         else:
-            # 업체/날짜(또는 요일)를 조건 검색으로 조회한다.
-            # 사용자가 끼니를 지정하지 않았다면 현재 시각으로 기본값을 정하고,
-            # 해당 조건에 데이터가 없어도 다른 날짜/끼니로 대체하지 않는다.
-            meal_type = _resolve_meal_type(filters, now)
-            menu_date = _resolve_menu_date(filters, now, today)
-            org_codes = _resolve_organization_codes(filters, meal_type)
-            org_display_list = [ORGANIZATIONS[code]["display_name"] for code in org_codes]
-
+            # 해당 조건에 데이터가 없어도 다른 날짜/끼니/업체로 대체하지 않는다.
+            org_display_list = [
+                ORGANIZATIONS[code]["display_name"] for code in plan["organization_codes"]
+            ]
             raw_results = []
             for org_display in org_display_list:
                 raw_results.extend(
-                    repository.get_by_condition(
+                    store.get_by_condition(
                         organization=org_display,
-                        menu_date=menu_date,
-                        weekday=filters.weekday,
-                        meal_type=meal_type,
+                        menu_date=plan["menu_date"],
+                        weekday=plan["weekday"],
+                        meal_type=plan["meal_type"],
                     )
                 )
-            search_mode = "condition"
 
         results = [_strip_internal_fields(r) for r in raw_results]
         answer = _build_answer(filters, results, today, search_mode)

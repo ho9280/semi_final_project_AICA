@@ -133,3 +133,20 @@ class VectorStore:
 
         candidates.sort(key=lambda c: c["score"], reverse=True)
         return candidates[:top_k]
+
+
+_default_vector_store: VectorStore | None = None
+
+
+def get_vector_store() -> VectorStore:
+    """기본(영구 저장) VectorStore 싱글턴을 반환한다.
+
+    의미 검색은 정확한 날짜·업체 조회의 필수 조건이 아니라 보조 수단이므로,
+    이 싱글턴은 실제로 검색이 필요할 때(또는 reload_menu_data() 호출 시)만
+    쓰이며, 읽기만 해서는 vector_store.json 파일을 새로 만들지 않는다
+    (upsert가 호출될 때만 파일이 생성/갱신된다).
+    """
+    global _default_vector_store
+    if _default_vector_store is None:
+        _default_vector_store = VectorStore()
+    return _default_vector_store
