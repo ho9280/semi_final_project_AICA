@@ -1,4 +1,14 @@
+import sys
+from pathlib import Path
+
 import streamlit as st
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from app.menu_agent_tool import get_current_menu
 
 
 st.set_page_config(
@@ -149,7 +159,7 @@ st.markdown(
 st.markdown(
     """
     <div class="header-box">
-        <div class="header-title">안녕하세요, OOO님</div>
+        <div class="header-title">안녕하세요, 사용자님</div>
         <div class="header-subtitle">
             오늘도 인공지능사관학교에서 좋은 하루 보내세요
         </div>
@@ -167,20 +177,91 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.markdown(
-    """
-    <div class="meal-card">
-        <div class="meal-type">KT 중식</div>
-        <div class="meal-menu">
-            제육볶음 · 계란찜 · 김치
+# 실제 식단 Agent에서 현재 시간대 식단 조회
+menu_result = get_current_menu()
+menu_list = menu_result.get("results", [])
+
+# 현재 보고 있는 식단 카드 번호 저장
+if "meal_slide_index" not in st.session_state:
+    st.session_state.meal_slide_index = 0
+
+# 식단 데이터가 있는 경우
+if menu_result.get("success") and menu_list:
+    # 데이터 개수가 바뀌어 인덱스가 범위를 벗어나는 경우 초기화
+    if st.session_state.meal_slide_index >= len(menu_list):
+        st.session_state.meal_slide_index = 0
+
+    current_menu = menu_list[st.session_state.meal_slide_index]
+
+    organization = current_menu.get("organization", "식당")
+    meal_type = current_menu.get("meal_type", "식단")
+    menu_items = current_menu.get("menu_items", [])
+
+    # 메뉴 리스트를 가운데점으로 연결
+    menu_text = " · ".join(menu_items) if menu_items else "등록된 메뉴가 없습니다."
+
+    st.markdown(
+        f"""
+        <div class="meal-card">
+            <div class="meal-type">{organization} {meal_type}</div>
+            <div class="meal-menu">
+                {menu_text}
+            </div>
+            <div class="meal-caption">
+                {st.session_state.meal_slide_index + 1} / {len(menu_list)}
+            </div>
         </div>
-        <div class="meal-caption">
-            현재 Mock 데이터로 표시 중입니다
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # 식단이 2개 이상일 때만 이전·다음 버튼 표시
+    if len(menu_list) > 1:
+        previous_col, next_col = st.columns(2)
+
+        with previous_col:
+            if st.button(
+                "◀ 이전 식단",
+                key="previous_meal",
+                use_container_width=True,
+            ):
+                st.session_state.meal_slide_index = (
+                    st.session_state.meal_slide_index - 1
+                ) % len(menu_list)
+                st.rerun()
+
+        with next_col:
+            if st.button(
+                "다음 식단 ▶",
+                key="next_meal",
+                use_container_width=True,
+            ):
+                st.session_state.meal_slide_index = (
+                    st.session_state.meal_slide_index + 1
+                ) % len(menu_list)
+                st.rerun()
+
+# 식단 데이터가 없는 경우
+else:
+    error_message = menu_result.get(
+        "answer",
+        "현재 표시할 수 있는 식단 정보가 없습니다.",
+    )
+
+    st.markdown(
+        f"""
+        <div class="meal-card">
+            <div class="meal-type">식단 안내</div>
+            <div class="meal-menu">
+                {error_message}
+            </div>
+            <div class="meal-caption">
+                식단 데이터가 등록되면 자동으로 표시됩니다.
+            </div>
         </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # -----------------------------
