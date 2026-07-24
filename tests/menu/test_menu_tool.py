@@ -12,11 +12,7 @@ from datetime import date, datetime
 import pytest
 from PIL import Image
 
-from app.menu.config import KST
-from app.menu.menu_agent import query_menu
-from app.menu.menu_embedding import VectorStore
-from app.menu.menu_file_store import MenuFileStore
-from app.menu.menu_tool import get_current_menu, get_menu
+from app.menu_agent_tool import KST, MenuFileStore, VectorStore, get_current_menu, get_menu, query_menu
 
 TODAY = date(2026, 7, 22)  # 수요일
 MORNING = datetime(2026, 7, 22, 9, 0, tzinfo=KST)

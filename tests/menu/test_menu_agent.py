@@ -1,12 +1,9 @@
-"""menu_agent.py에 대한 통합 테스트.
+"""menu_tool.py(질문 분석/검색)에 대한 통합 테스트.
 
 최종 정의서 기준으로 챗봇 질문(query_menu)의 기본 데이터 원본은
-data/menu 폴더의 이미지 + .txt(sidecar)이다(SQLite 아님). 테스트에서는
+data/menu 폴더의 이미지 + .txt(sidecar)이다(SQLite 없음). 테스트에서는
 tmp_path 아래에 업체 폴더(daesung/kt/kt_salad)를 만들고 MenuFileStore로
 읽어들여 실제 파일 배치와 최대한 비슷하게 검증한다.
-
-register_menu_image()/MenuRepository(SQLite)는 호환용으로 남아 있으므로
-별도 절에서 그대로 계속 테스트한다.
 """
 
 from __future__ import annotations
@@ -16,16 +13,7 @@ from datetime import date, datetime
 import pytest
 from PIL import Image
 
-from app.menu.config import KST
-from app.menu.menu_agent import (
-    parse_query,
-    plan_menu_search,
-    query_menu,
-    register_menu_image,
-)
-from app.menu.menu_embedding import VectorStore
-from app.menu.menu_file_store import MenuFileStore
-from app.menu.menu_repository import MenuRepository
+from app.menu_agent_tool import KST, MenuFileStore, VectorStore, parse_query, plan_menu_search, query_menu
 
 TODAY = date(2026, 7, 22)  # 수요일
 NOW = datetime(2026, 7, 22, 9, 0, tzinfo=KST)  # 시각은 챗봇 기본값에 영향을 주지 않는다.
@@ -80,63 +68,6 @@ def test_parse_query_no_organization_when_absent():
     filters = parse_query("오늘 식단 알려줘.", today=TODAY)
     assert filters.organization_display is None
     assert filters.menu_date == "2026-07-22"
-
-
-# ---------- SQLite 등록 경로 (호환용, register_menu_image) ----------
-
-
-def _write_sqlite_sample_image(tmp_path, filename: str, ocr_text: str):
-    image_path = tmp_path / f"{filename}.png"
-    Image.new("RGB", (4, 4), color=(255, 255, 255)).save(image_path)
-    (tmp_path / f"{filename}.txt").write_text(ocr_text, encoding="utf-8")
-    return image_path
-
-
-@pytest.fixture
-def repo(tmp_path):
-    return MenuRepository(db_path=tmp_path / "menu.db")
-
-
-def test_register_menu_image_success(tmp_path, repo, vector_store):
-    image = _write_sqlite_sample_image(
-        tmp_path, "kt_menu", "2026-07-22 수요일 점심: 제육볶음, 미역국, 배추김치"
-    )
-
-    result = register_menu_image(image, "kt", repository=repo, vector_store=vector_store)
-
-    assert result["success"] is True
-    assert len(result["registered_ids"]) == 1
-    assert repo.count() == 1
-    assert vector_store.count() == 1
-
-
-def test_register_menu_image_ocr_failure_without_sidecar(tmp_path, repo, vector_store):
-    image_path = tmp_path / "no_sidecar.png"
-    Image.new("RGB", (4, 4)).save(image_path)
-
-    result = register_menu_image(image_path, "kt", repository=repo, vector_store=vector_store)
-
-    assert result["success"] is False
-    assert result["error"] == "OCR 결과 없음"
-    assert result["registered_ids"] == []
-
-
-def test_register_menu_image_unknown_organization(tmp_path, repo, vector_store):
-    image = _write_sqlite_sample_image(tmp_path, "x", "아무 텍스트")
-    result = register_menu_image(image, "unknown_org", repository=repo, vector_store=vector_store)
-    assert result["success"] is False
-    assert "알 수 없는 업체" in result["error"]
-
-
-def test_register_menu_image_duplicate_does_not_grow_storage(tmp_path, repo, vector_store):
-    image = _write_sqlite_sample_image(
-        tmp_path, "kt_menu", "2026-07-22 수요일 점심: 제육볶음, 미역국, 배추김치"
-    )
-    register_menu_image(image, "kt", repository=repo, vector_store=vector_store)
-    register_menu_image(image, "kt", repository=repo, vector_store=vector_store)
-
-    assert repo.count() == 1
-    assert vector_store.count() == 1
 
 
 # ---------- plan_menu_search / query_menu (파일 기반 챗봇 경로) ----------
@@ -490,3 +421,36 @@ def test_hybrid_search_vector_fallback_used_when_no_exact_or_contains_match(data
 
     assert result["success"] is True
     assert any("돈가스" in r["menu_items"] for r in result["results"])
+
+
+@pytest.mark.parametrize(
+    "query,expected_ingredient",
+    [
+        ("방울토마토 들어간 메뉴 알려줘", "방울토마토"),
+        ("방울토마토 들어있는 메뉴 알려줘", "방울토마토"),
+        ("방울토마토 포함된 메뉴 알려줘", "방울토마토"),
+        ("참깨흑임자드레싱 들어간 메뉴 알려줘", "참깨흑임자드레싱"),
+    ],
+)
+def test_ingredient_inclusion_phrases_use_contains_match_not_vector_fallback(
+    data_dir, vector_store, query, expected_ingredient
+):
+    # "들어간"/"들어있는"/"포함된" 같은 재료 포함 표현이 키워드에 남아 있으면
+    # 정확/포함 매칭이 실패해 벡터 유사도(4단계)로 넘어가면서 관련 없는
+    # 대성학원 메뉴가 섞여 들어오던 문제를 재발 방지한다.
+    store = _build_hybrid_fixture(data_dir, vector_store)
+
+    filters = parse_query(query, today=TODAY)
+    plan = plan_menu_search(query, filters, TODAY)
+    assert plan["search_mode"] == "hybrid"
+    assert plan["keyword"] == expected_ingredient  # "들어간" 등이 키워드에서 제거됨
+
+    result = query_menu(query, store=store, vector_store=vector_store, today=TODAY, now=NOW)
+
+    assert result["success"] is True, query
+    assert len(result["results"]) > 0
+    # 관련 없는 대성학원 메뉴가 섞여 들어오지 않아야 한다 (전부 KT 샐러드여야 함).
+    assert all(r["organization"] == "KT 샐러드" for r in result["results"]), query
+    assert all(
+        any(expected_ingredient in item for item in r["menu_items"]) for r in result["results"]
+    )

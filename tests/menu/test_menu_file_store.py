@@ -1,4 +1,4 @@
-"""menu_file_store.py에 대한 테스트.
+"""menu_data.py의 파일 기반 저장소(MenuFileStore) 구역에 대한 테스트.
 
 MenuFileStore는 data/menu 폴더 구조(업체별 하위 폴더 + 이미지/텍스트)를 그대로
 흉내 낸 tmp_path 아래에서 스캔 동작을 검증한다.
@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 from PIL import Image
 
-from app.menu.menu_file_store import MenuFileStore
+from app.menu_agent_tool import MenuFileStore
 
 
 def _write_image(folder, filename: str, ocr_text: str | None = None):

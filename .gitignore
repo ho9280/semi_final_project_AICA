@@ -10,3 +10,9 @@ __pycache__/
 # 메뉴 Agent가 로컬에서 생성하는 DB/벡터 스토어 (팀원마다 로컬에서 생성)
 data/menu/menu.db
 data/menu/vector_store.json
+
+# OCR 미리보기/자동 등록 파이프라인이 만드는 임시 산출물 (팀원마다 로컬에서 생성)
+data/_ocr_previews/
+
+# PaddleOCR 모델 캐시 (비 ASCII 사용자 경로 문제를 피하려고 프로젝트 루트 아래에 둠, 팀원마다 로컬에서 자동 생성)
+.paddlex_cache/

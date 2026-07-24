@@ -1,8 +1,8 @@
-"""menu_parser.py에 대한 테스트."""
+"""menu_data.py의 메뉴 텍스트 파싱 구역에 대한 테스트."""
 
 from __future__ import annotations
 
-from app.menu.menu_parser import parse_ocr_text
+from app.menu_agent_tool import parse_ocr_text
 
 
 def test_parse_single_line():

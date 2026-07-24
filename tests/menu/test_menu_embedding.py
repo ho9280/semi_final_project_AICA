@@ -1,10 +1,10 @@
-"""menu_embedding.py에 대한 테스트."""
+"""menu_data.py의 임베딩/벡터 검색 구역에 대한 테스트."""
 
 from __future__ import annotations
 
 import pytest
 
-from app.menu.menu_embedding import VectorStore, embed_text
+from app.menu_agent_tool import VectorStore, embed_text
 
 
 @pytest.fixture
