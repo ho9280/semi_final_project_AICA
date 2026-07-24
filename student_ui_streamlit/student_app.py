@@ -1,5 +1,7 @@
 import sys
 from pathlib import Path
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import streamlit as st
 
@@ -147,6 +149,20 @@ st.markdown(
         font-size: 13px;
         line-height: 1.6;
     }
+    /* 주요 기능 버튼 전체 텍스트: 설명은 회색 */
+div[data-testid="stButton"] > button p {
+    color: #7A808A;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.7;
+}
+
+/* 주요 기능 버튼 제목: 굵고 조금 크게 */
+div[data-testid="stButton"] > button p strong {
+    color: #202124;
+    font-size: 16px;
+    font-weight: 700;
+}
     </style>
     """,
     unsafe_allow_html=True,
@@ -159,7 +175,7 @@ st.markdown(
 st.markdown(
     """
     <div class="header-box">
-        <div class="header-title">안녕하세요, 사용자님</div>
+        <div class="header-title">안녕하세요, 사용자님 👋</div>
         <div class="header-subtitle">
             오늘도 인공지능사관학교에서 좋은 하루 보내세요
         </div>
@@ -170,10 +186,14 @@ st.markdown(
 
 
 # -----------------------------
-# 오늘의 식단
+# 식단
 # -----------------------------
+# 한국 시간 기준으로 19시 이후에는 '내일의 식단' 표시
+current_hour = datetime.now(ZoneInfo("Asia/Seoul")).hour
+meal_section_title = "내일의 식단" if current_hour >= 19 else "오늘의 식단"
+
 st.markdown(
-    '<div class="section-title">오늘의 식단</div>',
+    f'<div class="section-title">{meal_section_title}</div>',
     unsafe_allow_html=True,
 )
 
@@ -276,7 +296,7 @@ col1, col2 = st.columns(2, gap="small")
 
 with col1:
     if st.button(
-        "▣\n출결 계산\n출석률과 지원 기준 확인",
+        "📅\n**출결 계산**\n출석률과 지원 기준 확인",
         key="attendance_button",
         use_container_width=True,
     ):
@@ -284,7 +304,7 @@ with col1:
 
 with col2:
     if st.button(
-        "◇\nAI 챗봇\n학습·생활 관련 질문",
+        "💬\n**AI 챗봇**\n학습·생활 관련 질문",
         key="chatbot_button",
         use_container_width=True,
     ):
@@ -294,7 +314,7 @@ col3, col4 = st.columns(2, gap="small")
 
 with col3:
     if st.button(
-        "○\n공지사항\n공지 제목 검색 및 조회",
+        "📢\n**공지사항**\n공지 제목 검색 및 조회",
         key="notice_button",
         use_container_width=True,
     ):
@@ -302,13 +322,12 @@ with col3:
 
 with col4:
     if st.button(
-        "◁\n민원 신청\n민원 작성과 상태 확인",
+        "📝\n**민원 신청**\n민원 작성과 상태 확인",
         key="complaint_button",
         use_container_width=True,
     ):
         st.switch_page("pages/complaints_page.py")
-
-
+        
 # -----------------------------
 # 안내 영역
 # -----------------------------
