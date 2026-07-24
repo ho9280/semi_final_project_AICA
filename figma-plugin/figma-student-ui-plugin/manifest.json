@@ -1,0 +1,11 @@
+{
+  "name": "인사교 학생 앱 UI 생성기",
+  "id": "기존 manifest.json에 있던 id 값",
+  "api": "1.0.0",
+  "main": "code.js",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": ["none"]
+  }
+}
