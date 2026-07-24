@@ -1,0 +1,105 @@
+<title>메뉴 Agent 브리핑 — 7/23</title>
+<style>
+  body{background:#fafafa;color:#1f2328;font-family:system-ui,'Malgun Gothic',sans-serif;
+       max-width:900px;margin:0 auto;padding:2rem 1rem;line-height:1.6}
+  h1{border-bottom:1px solid #ddd;padding-bottom:.5rem}
+  h2{margin-top:2.2rem}
+  .action{background:#fdecec;border-left:4px solid #d64545;padding:1rem;border-radius:6px}
+  .box{display:inline-block;border:1px solid #4a90d9;border-radius:6px;padding:.5rem 1rem;margin:.3rem;background:#fff}
+  .box.new{border-color:#15803d}
+  .arrow{color:#888;margin:0 .5rem}
+  table{border-collapse:collapse;width:100%;margin:.8rem 0} td,th{border-bottom:1px solid #ddd;padding:.5rem;text-align:left;vertical-align:top}
+  th{background:#f0f0f0}
+  code{background:#f0f0f0;padding:.1rem .35rem;border-radius:4px;font-size:.92em}
+  pre{background:#282c34;color:#e6e6e6;padding:1rem;border-radius:8px;overflow-x:auto;font-size:.88em}
+  .ok{color:#15803d;font-weight:600}.todo{color:#b45309;font-weight:600}.warn{color:#b91c1c;font-weight:600}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;background:#fff;border:1px solid #eee;border-radius:8px;padding:1rem;margin:.6rem 0}
+  .tag{display:inline-block;background:#eef2ff;color:#3730a3;border-radius:4px;padding:.1rem .5rem;font-size:.82em;margin-left:.4rem}
+  @media (prefers-color-scheme: dark){
+    body{background:#1a1a1a;color:#e6e6e6}
+    h1{border-color:#444}
+    .box{background:#242424;border-color:#5b9bd5}
+    th{background:#2a2a2a} td,th{border-color:#3a3a3a}
+    code{background:#2a2a2a}
+    .action{background:#3a1f1f}
+    .flow{background:#242424;border-color:#333}
+    .tag{background:#2a2a4a;color:#c7d2fe}
+  }
+</style>
+
+<h1>메뉴 Agent — 공개 Tool 인터페이스 + 시간대별 식단 조회 (7/23)</h1>
+
+<h2>TL;DR</h2>
+<ul>
+<li>어제(7/22) OCR→구조화 파이프라인까지 있던 메뉴 Agent가, 오늘 <strong>다른 팀이 바로 가져다 쓸 수 있는 완제품</strong> 수준으로 다듬어졌습니다.</li>
+<li>새 파일 <code>menu_tool.py</code>가 팀 간 계약 인터페이스(<code>get_menu()</code>)를 제공합니다 — 검색 로직은 재구현하지 않고 기존 <code>query_menu()</code>를 재사용만 합니다.</li>
+<li>"석식(저녁)" 개념과 "지금 몇 시니까 점심/저녁 중 뭘 보여줄지" 시간대 기본값 로직이 새로 들어갔습니다.</li>
+<li>샘플 더미 식단 이미지 + Mock OCR 텍스트 3세트(대성학원/KT/KT 샐러드)가 <code>data/menu/</code>에 추가되어, 실제 OCR 없이도 전체 흐름을 끝까지 시연할 수 있습니다.</li>
+<li>테스트 63개 전부 통과(<code>uv run pytest tests/menu</code>). 아직 커밋되지 않은 변경 상태입니다.</li>
+</ul>
+
+<h2>🔴 지금 해야 할 일</h2>
+<div class="action">
+<ol>
+<li><strong>커밋 여부 결정</strong> — 지금 작업이 전부 <em>unstaged/untracked</em> 상태입니다 (<code>menu_agent.py</code>, <code>README.md</code>, <code>.gitignore</code> 수정 + <code>menu_tool.py</code>, <code>seed_sample_data.py</code>, <code>data/</code>, <code>menu_agent_claude_context.md</code>, 테스트 1개 신규). 이대로 커밋할지, 더 다듬을지 확인이 필요합니다.</li>
+<li><strong><code>menu_agent_claude_context.md</code> 처리 방침</strong> — 이 파일은 Claude에게 준 작업 지침서(스펙 문서)입니다. 팀 저장소에 그대로 커밋할지, 개인 참고용으로만 두고 <code>.gitignore</code>에 추가할지 결정이 필요합니다.</li>
+<li><strong>실제 식단표 이미지로 OCR 검증 안 됨</strong> — 지금은 전부 Mock(<code>.txt</code> sidecar)입니다. 실제 사진으로 Tesseract 정확도를 확인해야 이 MVP가 실전에 쓸만한지 알 수 있습니다.</li>
+</ol>
+</div>
+
+<h2>무엇이 만들어졌나</h2>
+<p>모듈 구조는 어제와 같지만, 오늘 <code>menu_tool.py</code>가 최상단에 추가되어 "다른 팀 코드가 부를 진입점"과 "내부 검색 엔진"이 분리되었습니다.</p>
+
+<div class="flow">
+  <span class="box">다른 Agent / FastAPI / LangGraph Router</span>
+  <span class="arrow">→</span>
+  <span class="box new">menu_tool.py<br><small>get_menu()</small></span>
+  <span class="arrow">→</span>
+  <span class="box">menu_agent.py<br><small>query_menu() / plan_menu_search()</small></span>
+</div>
+<div class="flow">
+  <span class="box">menu_agent.py</span>
+  <span class="arrow">→</span>
+  <span class="box">menu_repository.py<br><small>SQLite 조건 검색</small></span>
+  <span class="arrow">또는</span>
+  <span class="box">menu_embedding.py<br><small>VectorStore 의미 검색</small></span>
+</div>
+
+<table>
+<tr><th>파일</th><th>역할</th></tr>
+<tr><td><code>menu_tool.py</code> <span class="tag">신규</span></td><td>다른 팀이 import하는 공개 함수 <code>get_menu()</code>. 검색 로직을 새로 만들지 않고 <code>query_menu()</code> 결과를 팀 간 고정 스키마(<code>conditions</code>, <code>error</code> 필드 포함)로 감싸기만 함.</td></tr>
+<tr><td><code>menu_agent.py</code> <span class="tag">대폭 확장</span></td><td>질문에서 업체/날짜/요일/끼니 추출 + <strong>시간대 기본값 로직</strong>(00~13시 점심, 13~19시 저녁, 19시 이후 다음날 점심) 신규 추가. <code>plan_menu_search()</code>로 조건검색/의미검색 판단을 한 곳에 모음.</td></tr>
+<tr><td><code>config.py</code></td><td><code>MEAL_TYPE_SYNONYMS</code>(중식/런치→점심, 석식/디너→저녁), <code>DINNER_ORGANIZATION_CODES</code>(저녁은 대성학원만 제공) 추가.</td></tr>
+<tr><td><code>seed_sample_data.py</code> <span class="tag">신규</span></td><td><code>data/menu</code> 샘플 이미지 3장을 DB/벡터스토어에 실제 등록하는 실행 스크립트.</td></tr>
+<tr><td><code>data/menu/*</code> <span class="tag">신규</span></td><td>대성학원/KT/KT 샐러드 더미 이미지 + Mock OCR용 <code>.txt</code> sidecar.</td></tr>
+<tr><td><code>test_menu_tool.py</code> <span class="tag">신규</span></td><td><code>get_menu()</code> 계약(스키마, 예외 시에도 구조 유지) 테스트.</td></tr>
+<tr><td><code>README.md</code></td><td>파일별 역할, 실행법, 끼니 동의어 표, 시간대 기본값 표, 자주 발생하는 오류, MVP 한계까지 전면 문서화(1줄→204줄).</td></tr>
+</table>
+
+<h2>어떻게 동작하나 — 대표 시나리오</h2>
+<p>사용자가 <strong>저녁 7시 반</strong>에 "KT 메뉴 뭐야?"라고 물었다고 하면:</p>
+<ol>
+<li><code>menu_tool.get_menu()</code> 호출 → 내부적으로 <code>menu_agent.parse_query()</code>가 업체="KT", 날짜/요일/끼니는 미지정으로 추출.</li>
+<li>끼니 미지정 + 19시 이후이므로 <code>_resolve_meal_type</code>이 "다음 식단 제공일 점심"으로 판단, 날짜는 내일로 계산.</li>
+<li>업체가 "KT"로 명시되어 있으므로 조건 검색 모드로 SQLite <code>menu_repository.get_by_condition(organization="KT", menu_date=내일, meal_type="점심")</code> 조회.</li>
+<li>결과가 있으면 <code>"내일 KT 점심 메뉴는 ...입니다."</code> 형태 답변 생성, 원본 이미지 경로도 함께 반환.</li>
+<li>결과가 없으면 다른 날짜로 대체하지 않고 <code>"해당 날짜에는 등록된 식단이 없습니다."</code>를 그대로 반환.</li>
+</ol>
+<p>반대로 "이번 주에 돈가스 나오는 날이 언제야?"처럼 날짜 자체를 찾는 질문은 "언제/나오는" 키워드를 감지해 <strong>의미 검색</strong>(해싱 기반 TF 벡터 + 코사인 유사도)으로 전환됩니다.</p>
+
+<h2>검증 상태</h2>
+<table>
+<tr><th>항목</th><th>상태</th></tr>
+<tr><td>단위 테스트 (<code>uv run pytest tests/menu -q</code>)</td><td><span class="ok">63개 전체 통과</span> (parser/repository/embedding/agent/tool 전 모듈)</td></tr>
+<tr><td>실제 이미지 OCR 정확도</td><td><span class="todo">미검증</span> — 지금은 Mock(.txt sidecar)만 확인됨</td></tr>
+<tr><td>FastAPI/LangGraph Router 실제 연동</td><td><span class="todo">미구현</span> — 인터페이스만 준비됨(<code>get_menu()</code>)</td></tr>
+<tr><td>동작 재현 명령</td><td><code>uv sync</code> → <code>uv run python -m app.menu.seed_sample_data</code> → <code>uv run python -m app.menu.menu_agent</code></td></tr>
+</table>
+
+<h2>미완·다음 단계</h2>
+<ul>
+<li>실제 식단표 사진으로 <code>TesseractOCRProvider</code> 정확도 확인 (현재 코드는 있지만 실사용 검증 없음).</li>
+<li><code>menu_parser.py</code>는 "날짜 요일 끼니: 항목" 한 줄 형식만 인식하는 단순 정규식 — 업체별 실제 레이아웃이 다르면 업체별 전처리 필요.</li>
+<li>해싱 기반 임베딩은 키워드 중복 위주라 동의어/유사 표현 의미 검색에는 한계가 있음(README에 명시적으로 기록됨).</li>
+<li>관리자 웹 화면, 인증/권한, 공휴일 반영은 이번 MVP 범위 밖.</li>
+</ul>
