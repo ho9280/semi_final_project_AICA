@@ -33,9 +33,37 @@ class ParseResult:
     error: str | None = None
 
 
+_ITEM_SEPARATORS = set(",，·/")
+_PAREN_OPEN = set("(（")
+_PAREN_CLOSE = set(")）")
+
+
 def _split_items(raw_items: str) -> list[str]:
-    # 쉼표, 가운뎃점, 슬래시 등 흔히 쓰이는 구분자를 모두 처리한다.
-    parts = re.split(r"[,，·/]", raw_items)
+    """메뉴 항목을 구분자(쉼표, 가운뎃점, 슬래시) 기준으로 나눈다.
+
+    괄호 `(...)`/`（...）` 안에 있는 구분자는 항목을 나누지 않는다. 예를 들어
+    "오렌지치킨텐더샐러드 (구성재료: 치킨텐더, 오렌지 / 드레싱: ...)" 처럼
+    괄호 안에 상세 정보(재료, 드레싱, 열량, 원산지 등)를 함께 적어도
+    괄호 전체가 하나의 메뉴 항목으로 유지된다.
+    """
+    parts: list[str] = []
+    current: list[str] = []
+    depth = 0
+
+    for ch in raw_items:
+        if ch in _PAREN_OPEN:
+            depth += 1
+            current.append(ch)
+        elif ch in _PAREN_CLOSE:
+            depth = max(0, depth - 1)
+            current.append(ch)
+        elif ch in _ITEM_SEPARATORS and depth == 0:
+            parts.append("".join(current))
+            current = []
+        else:
+            current.append(ch)
+
+    parts.append("".join(current))
     return [p.strip() for p in parts if p.strip()]
 
 

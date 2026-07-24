@@ -352,3 +352,141 @@ def test_kt_dinner_not_registered_returns_no_data_message(data_dir, vector_store
     assert result["success"] is False
     assert result["results"] == []
     assert result["answer"] == "해당 날짜에는 등록된 식단이 없습니다."
+
+
+# ---------- 하이브리드(메뉴명/재료) 검색 ----------
+#
+# 실제 KT 샐러드 sidecar 형식("샐러드명 (구성재료: ... / 드레싱: ... / 열량: ... / 원산지: ...)")과
+# 동일한 데이터를 tmp_path에 구성해, 정확일치 -> 포함 -> 조건일치 -> 벡터유사도 순으로
+# 검색되는지 검증한다.
+
+
+def _build_hybrid_fixture(data_dir, vector_store):
+    _write_sample_image(
+        data_dir / "kt_salad",
+        "kt_salad_menu",
+        "\n".join(
+            [
+                "2026-07-20 월요일 점심: 오렌지치킨텐더샐러드 (구성재료: 치킨텐더, 오렌지, 방울토마토 / 드레싱: 유자오리엔탈드레싱 / 열량: 412kcal / 원산지: 닭가슴살 국내산)",
+                "2026-07-21 화요일 점심: 두부볼콥샐러드 (구성재료: 두부볼, 깐계란, 완숙토마토 / 드레싱: 참깨흑임자드레싱 / 열량: 395kcal / 원산지: 두부-콩:외국산 돈육:국내산)",
+                "2026-07-22 수요일 점심: 트러플오일소세지샐러드 (구성재료: 그릴소시지, 오트밀브레드, 완숙토마토 / 드레싱: 트러플오일드레싱 / 열량: 420kcal / 원산지: 소시지-돈육 계육:국내산)",
+                "2026-07-23 목요일 점심: 오렌지치킨텐더샐러드 (구성재료: 치킨텐더, 오렌지, 방울토마토 / 드레싱: 유자오리엔탈드레싱 / 열량: 408kcal / 원산지: 닭가슴살:국내산)",
+                "2026-07-24 금요일 점심: 베이컨시저샐러드 (구성재료: 베이컨칩, 그릴치킨, 방울토마토 / 드레싱: 시저드레싱 / 열량: 410kcal / 원산지: 돈전지:외국산 닭가슴살:국산)",
+            ]
+        ),
+    )
+    _write_sample_image(
+        data_dir / "kt",
+        "kt_menu",
+        "\n".join(
+            [
+                "2026-07-20 월요일 점심: 황태미역국, 백미밥&잡곡밥, 메밀전병튀김, 배추김치, 냉보리차",
+                "2026-07-24 금요일 점심: 얼갈이된장국, 백미밥&잡곡밥, 제육볶음, 배추김치, 냉매실차",
+            ]
+        ),
+    )
+    _write_sample_image(
+        data_dir / "daesung",
+        "daesung_menu",
+        "\n".join(
+            [
+                "2026-07-20 월요일 아침: 돈육김치찌개, 소세지전*케찹, 알감자버터구이, 취나물무침",
+                "2026-07-23 목요일 점심: 돈가스, 우동, 단무지",
+                "2026-07-24 금요일 점심: 짜계치(파포겟티 계란후라이 치즈), 미니밥&햄구이, 단무지",
+            ]
+        ),
+    )
+    store = MenuFileStore(data_dir=data_dir)
+    store.load(vector_store=vector_store)  # 벡터 폴백 단계까지 검증하기 위해 색인도 만든다.
+    return store
+
+
+@pytest.mark.parametrize(
+    "query,expected_name_part",
+    [
+        ("오렌지치킨텐더샐러드", "오렌지치킨텐더샐러드"),
+        ("방울토마토", None),  # 여러 건(7/20,7/23,7/24)이 모두 KT 샐러드여야 한다
+        ("참깨흑임자드레싱", "두부볼콥샐러드"),
+        ("베이컨시저샐러드", "베이컨시저샐러드"),
+        ("트러플오일소세지샐러드", "트러플오일소세지샐러드"),
+    ],
+)
+def test_hybrid_search_ranks_kt_salad_first_for_menu_and_ingredient_queries(
+    data_dir, vector_store, query, expected_name_part
+):
+    store = _build_hybrid_fixture(data_dir, vector_store)
+
+    result = query_menu(query, store=store, vector_store=vector_store, today=TODAY, now=NOW)
+
+    assert result["success"] is True, query
+    assert all(r["organization"] == "KT 샐러드" for r in result["results"]), query
+    if expected_name_part is not None:
+        assert result["results"][0]["menu_items"][0].startswith(expected_name_part)
+
+
+def test_hybrid_search_organization_scoped_ingredient_query(data_dir, vector_store):
+    store = _build_hybrid_fixture(data_dir, vector_store)
+
+    result = query_menu(
+        "KT 샐러드 방울토마토 메뉴", store=store, vector_store=vector_store, today=TODAY, now=NOW
+    )
+
+    assert result["success"] is True
+    assert all(r["organization"] == "KT 샐러드" for r in result["results"])
+    assert all(
+        any("방울토마토" in item for item in r["menu_items"]) for r in result["results"]
+    )
+
+
+def test_hybrid_search_scoped_to_kt_general_finds_no_match_for_salad_only_ingredient(
+    data_dir, vector_store
+):
+    # "KT"만 언급했으므로(KT 샐러드 아님) KT 일반식 범위로만 검색한다.
+    # "참깨흑임자드레싱"은 KT 샐러드 전용 재료라 KT 일반식에는 없으므로 못 찾는 것이 맞다.
+    store = _build_hybrid_fixture(data_dir, vector_store)
+
+    result = query_menu(
+        "KT 참깨흑임자드레싱 나오는 날", store=store, vector_store=vector_store, today=TODAY, now=NOW
+    )
+
+    assert result["success"] is False
+    assert result["results"] == []
+    assert result["answer"] == "관련 메뉴를 찾지 못했습니다."
+
+
+def test_hybrid_search_does_not_break_explicit_organization_date_meal_query(data_dir, vector_store):
+    store = _build_hybrid_fixture(data_dir, vector_store)
+
+    daesung_result = query_menu(
+        "대성학원 오늘 점심", store=store, vector_store=vector_store, today=TODAY, now=NOW
+    )
+    kt_result = query_menu("KT 오늘 점심", store=store, vector_store=vector_store, today=TODAY, now=NOW)
+
+    assert daesung_result["success"] is False  # TODAY(7/22)에는 대성학원 점심 데이터가 없음(정상)
+    assert daesung_result["answer"] == "해당 날짜에는 등록된 식단이 없습니다."
+    assert kt_result["success"] is False  # TODAY(7/22)에는 KT 점심 데이터가 없음(정상)
+    assert kt_result["answer"] == "해당 날짜에는 등록된 식단이 없습니다."
+
+
+def test_hybrid_search_no_match_returns_not_found_message(data_dir, vector_store):
+    store = _build_hybrid_fixture(data_dir, vector_store)
+
+    result = query_menu(
+        "완전히존재하지않는메뉴이름입니다", store=store, vector_store=vector_store, today=TODAY, now=NOW
+    )
+
+    assert result["success"] is False
+    assert result["results"] == []
+    assert result["answer"] == "관련 메뉴를 찾지 못했습니다."
+
+
+def test_hybrid_search_vector_fallback_used_when_no_exact_or_contains_match(data_dir, vector_store):
+    # "돈가스" 자체는 정확히 일치하는 항목이 있으므로(대성학원 7/23), exact_match 단계에서 잡힌다.
+    store = _build_hybrid_fixture(data_dir, vector_store)
+
+    result = query_menu(
+        "이번 주에 돈가스 나오는 날이 언제야?", store=store, vector_store=vector_store, today=TODAY, now=NOW
+    )
+
+    assert result["success"] is True
+    assert any("돈가스" in r["menu_items"] for r in result["results"])

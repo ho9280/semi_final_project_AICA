@@ -36,9 +36,33 @@ from app.menu.menu_repository import MenuRepository
 _WEEKDAY_PATTERN = re.compile(r"[월화수목금토일]요일")
 _DATE_PATTERN = re.compile(r"(\d{4})[-./년]\s*(\d{1,2})[-./월]\s*(\d{1,2})일?")
 
-# "이번 주에 돈가스 나오는 날이 언제야?" 처럼 특정 메뉴가 나오는 날짜 자체를 묻는
-# 질문인지 판단하는 키워드. 이런 질문은 조건 검색이 아니라 의미 검색으로 처리한다.
-_SEMANTIC_INTENT_KEYWORDS = ["언제", "나오는", "나온다", "나와"]
+# 하이브리드 검색용 키워드를 뽑아낼 때, 업체/날짜/요일/끼니를 제거하고 남은
+# 토큰 중 이런 일반적인 질문 표현은 "메뉴 이름/재료"가 아니므로 제외한다.
+_SEARCH_STOPWORDS = {
+    "메뉴",
+    "알려줘",
+    "알려주세요",
+    "줘",
+    "주세요",
+    "뭐야",
+    "뭐지",
+    "뭐예요",
+    "궁금해",
+    "있어",
+    "있나요",
+    "좀",
+    "이번",
+    "주에",
+    "이번주",
+    "언제",
+    "나오는",
+    "나온다",
+    "나와",
+    "날",
+    "날짜",
+    "혹시",
+    "그",
+}
 
 
 def get_now_kst() -> datetime:
@@ -109,9 +133,38 @@ def _extract_meal_type(text: str) -> str | None:
     return None
 
 
-def _is_semantic_intent(text: str) -> bool:
-    """"돈가스 나오는 날이 언제야?"처럼 날짜 자체를 찾는 질문인지 판단한다."""
-    return any(keyword in text for keyword in _SEMANTIC_INTENT_KEYWORDS)
+def _extract_search_keyword(query: str, filters: QueryFilters) -> str:
+    """질문에서 업체/날짜/요일/끼니/일반 질문 표현을 제거하고 남는 "메뉴 이름이나
+    재료 이름으로 보이는" 핵심 검색어를 뽑아낸다.
+
+    예) "KT 샐러드 방울토마토 메뉴" -> "방울토마토"
+        "이번 주에 돈가스 나오는 날이 언제야?" -> "돈가스"
+        "KT 메뉴 알려줘" -> "" (남는 키워드가 없으면 하이브리드 검색을 쓰지 않는다)
+    """
+    text = query
+
+    if filters.organization_code is not None:
+        alias_list = ORGANIZATIONS[filters.organization_code]["aliases"]
+        lowered = text.lower()
+        # 가장 긴 별칭부터 검사해야 "kt 샐러드"가 "kt"보다 먼저 제거된다.
+        for alias in sorted(alias_list, key=len, reverse=True):
+            idx = lowered.find(alias.lower())
+            if idx != -1:
+                text = text[:idx] + text[idx + len(alias) :]
+                break
+
+    for word in ("오늘", "내일", "모레"):
+        text = text.replace(word, "")
+
+    if filters.weekday:
+        text = text.replace(filters.weekday, "")
+
+    for word in MEAL_TYPE_SYNONYMS:
+        text = text.replace(word, "")
+
+    tokens = [t.strip("?!.,~ ") for t in re.split(r"\s+", text)]
+    tokens = [t for t in tokens if t and t not in _SEARCH_STOPWORDS]
+    return " ".join(tokens).strip()
 
 
 def parse_query(query: str, today: date | None = None) -> QueryFilters:
@@ -169,31 +222,48 @@ def _resolve_organization_codes(filters: QueryFilters) -> list[str]:
 
 
 def plan_menu_search(query: str, filters: QueryFilters, today: date) -> dict:
-    """이 질문을 조건 검색으로 처리할지 의미 검색으로 처리할지, 어떤 조건으로
-    검색할지 결정한다. ``query_menu()``와 공개 Menu Tool(``menu_tool.py``)이
-    똑같은 판단 로직을 공유하도록 이 함수 하나로 모아둔다 (로직 중복 방지).
+    """이 질문을 조건 검색으로 처리할지 하이브리드(메뉴명/재료) 검색으로 처리할지,
+    어떤 조건으로 검색할지 결정한다. ``query_menu()``와 공개 Menu Tool
+    (``menu_tool.py``)이 똑같은 판단 로직을 공유하도록 이 함수 하나로 모아둔다
+    (로직 중복 방지).
 
     반환값:
         {
-            "search_mode": "condition" | "semantic",
-            "organization_codes": list[str] | None,  # semantic이면 None일 수 있음(전체 검색)
+            "search_mode": "condition" | "hybrid",
+            "organization_codes": list[str] | None,  # hybrid에서 None이면 전체 업체 대상
             "menu_date": str | None,
             "weekday": str | None,
             "meal_type": str | None,
+            "keyword": str | None,  # "hybrid"일 때만 의미 있음
         }
     """
-    if not filters.menu_date and not filters.weekday and _is_semantic_intent(query):
-        # "돈가스 나오는 날이 언제야?" 처럼 날짜 자체를 찾는 질문은 의미 검색으로 처리한다.
+    if filters.menu_date or filters.weekday:
+        # 업체/날짜(또는 요일)가 명확하므로 조건 검색을 그대로 쓴다(기존 동작 유지).
+        meal_type = _resolve_meal_type(filters)
+        org_codes = _resolve_organization_codes(filters)
         return {
-            "search_mode": "semantic",
-            "organization_codes": [filters.organization_code] if filters.organization_code else None,
-            "menu_date": None,
-            "weekday": None,
-            "meal_type": filters.meal_type,
+            "search_mode": "condition",
+            "organization_codes": org_codes,
+            "menu_date": filters.menu_date,
+            "weekday": filters.weekday,
+            "meal_type": meal_type,
+            "keyword": None,
         }
 
-    # 업체/날짜(또는 요일)를 조건 검색으로 조회한다. 끼니를 지정하지 않았다면
-    # 항상 점심을 기본값으로 쓴다(시간대와 무관).
+    keyword = _extract_search_keyword(query, filters)
+    if keyword:
+        # "방울토마토", "오렌지치킨텐더샐러드", "KT 참깨흑임자드레싱 나오는 날"처럼
+        # 메뉴 이름/재료로 보이는 검색어가 남으면 하이브리드 검색을 쓴다.
+        return {
+            "search_mode": "hybrid",
+            "organization_codes": [filters.organization_code] if filters.organization_code else None,
+            "menu_date": None,
+            "weekday": filters.weekday,
+            "meal_type": filters.meal_type,
+            "keyword": keyword,
+        }
+
+    # 남는 키워드가 없는 일반적인 질문("메뉴 알려줘" 등)은 오늘 날짜 기본 조건 검색.
     meal_type = _resolve_meal_type(filters)
     menu_date = _resolve_menu_date(filters, today)
     org_codes = _resolve_organization_codes(filters)
@@ -204,7 +274,94 @@ def plan_menu_search(query: str, filters: QueryFilters, today: date) -> dict:
         "menu_date": menu_date,
         "weekday": filters.weekday,
         "meal_type": meal_type,
+        "keyword": None,
     }
+
+
+def _menu_name_part(item: str) -> str:
+    """메뉴 항목 문자열에서 괄호로 시작하는 상세 설명 앞의 "메뉴 이름" 부분만 뽑는다.
+
+    예) "오렌지치킨텐더샐러드 (구성재료: ...)" -> "오렌지치킨텐더샐러드"
+    괄호가 없으면 항목 전체가 그대로 이름이다.
+    """
+    return item.split(" (")[0].strip()
+
+
+def hybrid_search_menu(
+    keyword: str,
+    organization_codes: list[str] | None,
+    weekday: str | None,
+    meal_type: str | None,
+    store: MenuFileStore,
+    vector_store: VectorStore,
+    top_k: int = 5,
+) -> tuple[list[dict], str, dict | None]:
+    """메뉴 이름/재료 키워드로 검색한다. 다음 우선순위를 순서대로 시도하고,
+    앞 단계에서 하나라도 찾으면 그 결과를 바로 반환한다(뒤 단계는 시도하지 않는다).
+
+        1. 정확 일치: 메뉴 이름이 키워드와 완전히 같음
+        2. 포함: 메뉴 문자열에 키워드가 포함됨
+        3. 조건 일치: 요일/끼니 조건이 있으면 그 조건으로 조회
+        4. 벡터 유사도(의미 검색) - 정확한 조회의 필수 조건이 아닌 보조 수단
+        5. 위에서 아무것도 못 찾으면 빈 결과
+
+    업체가 지정된 경우(organization_codes가 비어있지 않음) 처음부터 그 업체
+    데이터로만 범위를 좁혀서 검색한다.
+
+    반환값: (결과 목록, 매칭 단계 이름, 벡터 검색이면 {entry_id: score} 아니면 None)
+    """
+    org_displays = (
+        [ORGANIZATIONS[code]["display_name"] for code in organization_codes]
+        if organization_codes
+        else None
+    )
+
+    def in_scope(entry: dict) -> bool:
+        return org_displays is None or entry["organization"] in org_displays
+
+    scoped_entries = [e for e in store.get_all() if in_scope(e)]
+
+    # 1) 정확 일치
+    exact = [
+        e
+        for e in scoped_entries
+        if any(_menu_name_part(item) == keyword for item in e["menu_items"])
+    ]
+    if exact:
+        return exact, "exact_match", None
+
+    # 2) 포함
+    contains = [e for e in scoped_entries if any(keyword in item for item in e["menu_items"])]
+    if contains:
+        return contains, "contains_match", None
+
+    # 3) 조건 일치 (요일/끼니)
+    if weekday or meal_type:
+        condition_hits = [
+            e
+            for e in store.get_by_condition(weekday=weekday, meal_type=meal_type)
+            if in_scope(e)
+        ]
+        if condition_hits:
+            return condition_hits, "condition_match", None
+
+    # 4) 벡터 유사도 (보조 수단)
+    metadata_filter = {"organization": org_displays[0]} if org_displays and len(org_displays) == 1 else None
+    hits = vector_store.search(keyword, top_k=top_k, metadata_filter=metadata_filter)
+    scores: dict[str, float] = {}
+    vector_hits = []
+    for hit in hits:
+        if hit["score"] <= 0:
+            continue
+        entry = store.get_by_id(hit["id"])
+        if entry and in_scope(entry):
+            vector_hits.append(entry)
+            scores[hit["id"]] = hit["score"]
+    if vector_hits:
+        return vector_hits, "vector_fallback", scores
+
+    # 5) 관련성 기준을 충족하지 못함
+    return [], "no_match", None
 
 
 def _strip_internal_fields(entry: dict) -> dict:
@@ -239,8 +396,8 @@ def _build_answer(
             # 날짜(또는 요일) 조건으로 조회했는데 결과가 없는 경우.
             # 다른 날짜의 메뉴로 대체하지 않고, 정해진 안내 문구만 반환한다.
             return "해당 날짜에는 등록된 식단이 없습니다."
-        org_phrase = f" {filters.organization_display}" if filters.organization_display else ""
-        return f"{_date_phrase(filters, today)}{org_phrase} 식단 정보가 등록되어 있지 않습니다."
+        # 하이브리드(메뉴명/재료) 검색에서 관련성 기준을 충족하는 메뉴를 못 찾은 경우.
+        return "관련 메뉴를 찾지 못했습니다."
 
     if len(results) == 1:
         r = results[0]
@@ -286,20 +443,15 @@ def query_menu(
         plan = plan_menu_search(query, filters, today)
         search_mode = plan["search_mode"]
 
-        if search_mode == "semantic":
-            metadata_filter = (
-                {"organization": filters.organization_display}
-                if plan["organization_codes"]
-                else None
+        if search_mode == "hybrid":
+            raw_results, _match_tier, _scores = hybrid_search_menu(
+                plan["keyword"],
+                plan["organization_codes"],
+                plan["weekday"],
+                plan["meal_type"],
+                store,
+                vector_store,
             )
-            hits = vector_store.search(query, top_k=5, metadata_filter=metadata_filter)
-            raw_results = []
-            for hit in hits:
-                if hit["score"] <= 0:
-                    continue
-                entry = store.get_by_id(hit["id"])
-                if entry:
-                    raw_results.append(entry)
         else:
             # 해당 조건에 데이터가 없어도 다른 날짜/끼니/업체로 대체하지 않는다.
             org_display_list = [

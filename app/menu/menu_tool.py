@@ -95,7 +95,7 @@ def get_menu(
                 "menu_date": str | None,
                 "weekday": str | None,
                 "meal_type": str | None,
-                "search_mode": "condition" | "semantic",
+                "search_mode": "condition" | "hybrid",
             },
             "results": [
                 {

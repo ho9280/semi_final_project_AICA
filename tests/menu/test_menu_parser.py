@@ -80,3 +80,43 @@ def test_parse_invalid_weekday_line_is_ignored():
     result = parse_ocr_text(raw_text, organization="KT", menu_type="general", source_image_path="g.png")
     assert result.success is False
     assert result.error == "메뉴 구조화 실패"
+
+
+def test_parse_keeps_comma_and_slash_inside_parentheses_as_one_item():
+    raw_text = (
+        "2026-07-20 월요일 점심: 오렌지치킨텐더샐러드 "
+        "(구성재료: 치킨텐더, 오렌지, 방울토마토 / 드레싱: 유자오리엔탈드레싱 / "
+        "열량: 412kcal / 원산지: 닭가슴살 국내산)"
+    )
+    result = parse_ocr_text(raw_text, organization="KT 샐러드", menu_type="salad", source_image_path="h.png")
+
+    assert result.success is True
+    assert result.entries[0]["menu_items"] == [
+        "오렌지치킨텐더샐러드 "
+        "(구성재료: 치킨텐더, 오렌지, 방울토마토 / 드레싱: 유자오리엔탈드레싱 / "
+        "열량: 412kcal / 원산지: 닭가슴살 국내산)"
+    ]
+
+
+def test_parse_separates_items_outside_parentheses_normally():
+    raw_text = "2026-07-20 월요일 점심: 백미밥, 된장국, 메인메뉴 (재료1, 재료2), 배추김치"
+    result = parse_ocr_text(raw_text, organization="KT", menu_type="general", source_image_path="i.png")
+
+    assert result.success is True
+    assert result.entries[0]["menu_items"] == [
+        "백미밥",
+        "된장국",
+        "메인메뉴 (재료1, 재료2)",
+        "배추김치",
+    ]
+
+
+def test_parse_multiple_parenthesized_items_on_one_line():
+    raw_text = "2026-07-20 월요일 점심: 김밥 (참치, 야채), 라면 (신라면 / 매운맛)"
+    result = parse_ocr_text(raw_text, organization="KT", menu_type="general", source_image_path="j.png")
+
+    assert result.success is True
+    assert result.entries[0]["menu_items"] == [
+        "김밥 (참치, 야채)",
+        "라면 (신라면 / 매운맛)",
+    ]
