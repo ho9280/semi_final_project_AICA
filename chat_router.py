@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 # attendance_agent에서 workflow, AgentState import
 # =====================
 from attendance_agent import workflow, AgentState
+from app.menu_agent_tool import handle_chat_message as menu_handle_chat
 
 # =====================
 # 1. FastAPI 앱 생성 + CORS
@@ -89,8 +90,8 @@ def notice_agent_response(user_input: str) -> str:
 
 # [식단 Agent] 완성 시 이 함수 내부만 교체
 def meal_agent_response(user_input: str) -> str:
-    # TODO: 식단 agent 완성 시 교체
-    return "식단 관련 질문으로 안내드릴게요.\n현재 준비 중입니다."
+    result = menu_handle_chat(user_input)
+    return result["text"]
 
 
 # =====================
@@ -162,6 +163,8 @@ async def chat_endpoint(request: ChatRequest):
             return ChatResponse(text=text, action=None, show_buttons=True)
 
         elif intent == "식단":
+            if request.user_input.strip() == "식단":
+                return ChatResponse(text="식단 관련 질문으로 안내드릴게요.\n날짜나 요일, 식당명을 포함해서 질문해 주세요.\n예) 오늘 점심 뭐야? / KT 내일 메뉴 알려줘", action=None, show_buttons=True)
             text = meal_agent_response(request.user_input)
             return ChatResponse(text=text, action=None, show_buttons=True)
 
