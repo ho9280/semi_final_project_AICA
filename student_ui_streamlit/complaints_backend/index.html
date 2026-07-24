@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>AI 아카데미 민원 게시판</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f8f9fa; }
+        .main-container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .feed-card { border: 1px solid #e0e0e0; padding: 15px; margin-bottom: 12px; border-radius: 6px; background: #fff; }
+        .form-group { margin-bottom: 12px; display: flex; flex-direction: column; }
+        .form-group label { font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        
+        .btn-like { cursor: pointer; padding: 6px 12px; border: 1px solid #ddd; background: #fff; border-radius: 4px; font-weight: bold; }
+        .btn-like.liked { color: #e63946; border-color: #e63946; background: #fff0f1; cursor: not-allowed; }
+        .btn-like.unliked { color: #555; }
+        
+        .hidden { display: none !important; }
+        textarea { resize: vertical; min-height: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        select, input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+        .modal-window {
+            background: white; padding: 25px; border-radius: 8px; width: 520px; max-width: 90%;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); position: relative; max-height: 85vh; overflow-y: auto;
+        }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 22px; cursor: pointer; color: #888; }
+        
+        .filter-btn { padding: 6px 12px; margin-right: 4px; margin-bottom: 5px; border: 1px solid #ccc; background: #fff; border-radius: 15px; cursor: pointer; }
+        .filter-btn:hover { background: #e9ecef; }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <!-- 상단 헤더 & 작성 버튼 -->
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 12px;">
+            <h2 style="margin: 0;">🏛️ 광주 AI 아카데미 민원 서비스</h2>
+            <div style="display: flex; align-items: center;">
+                <label style="font-weight: bold;">👤 역할: </label>
+                <select id="roleSelect" onchange="onRoleChange()" style="margin-left: 5px; margin-right: 15px;">
+                    <option value="STUDENT">학생</option>
+                    <option value="ADMIN">관리자</option>
+                </select>
+
+                <label style="font-weight: bold;">🔑 계정: </label>
+                <select id="userSelect" onchange="onUserChange()" style="margin-left: 5px;"></select>
+                
+                <button onclick="openWriteModal()" style="margin-left: 15px; padding: 8px 14px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                    ✏️ 새 민원 작성
+                </button>
+            </div>
+        </header>
+
+        <!-- 피드 영역 -->
+        <section>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0;">📢 공개 민원 피드</h3>
+            </div>
+            <div id="filterGroup" style="margin-bottom: 15px;">
+                <button class="filter-btn" onclick="loadComplaints('')">전체보기</button>
+                <button class="filter-btn" onclick="loadComplaints('시설/환경')">시설/환경</button>
+                <button class="filter-btn" onclick="loadComplaints('학습 장비')">학습 장비</button>
+                <button class="filter-btn" onclick="loadComplaints('수업/학습')">수업/학습</button>
+                <button class="filter-btn" onclick="loadComplaints('청결')">청결</button>
+                <button class="filter-btn" onclick="loadComplaints('개선 방안')">개선 방안</button>
+                <button class="filter-btn" onclick="loadComplaints('비공개 - 기타')">비공개 - 기타</button>
+            </div>
+            <div id="feedContainer"></div>
+        </section>
+    </div>
+
+    <!-- 모달(팝업) -->
+    <div id="complaintModal" class="modal-overlay hidden">
+        <div class="modal-window">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h3 id="formTitle" style="margin-top: 0;">📝 새 민원 작성</h3>
+            <input type="hidden" id="currentComplaintId">
+            
+            <div class="form-group">
+                <label>카테고리 선택</label>
+                <select id="category">
+                    <option value="시설/환경">시설/환경</option>
+                    <option value="학습 장비">학습 장비</option>
+                    <option value="수업/학습">수업/학습</option>
+                    <option value="청결">청결</option>
+                    <option value="개선 방안">개선 방안</option>
+                    <option value="비공개 - 기타">비공개 - 기타</option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="rawContentGroup">
+                <label>원문 내용</label>
+                <textarea id="rawContent" placeholder="민원 내용을 상세히 입력해주세요."></textarea>
+            </div>
+
+            <button id="btnSummarize" onclick="previewSummary()" style="padding: 8px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 10px;">✨ AI 요약하기</button>
+
+            <div class="form-group">
+                <label>💡 AI 요약 결과</label>
+                <textarea id="summary" placeholder="요약 결과가 여기에 표시됩니다."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>📎 첨부파일 링크 (선택)</label>
+                <input type="url" id="photoUrl" placeholder="https://drive.google.com/...">
+            </div>
+
+            <hr style="margin: 15px 0;">
+            <div id="studentActionGroup">
+                <button onclick="submitComplaint()" style="width:100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🚀 최종 제출하기</button>
+            </div>
+            <div id="adminActionGroup" class="hidden">
+                <p style="font-weight: bold; margin-bottom: 5px;">⚙️ 관리자 상태 변경:</p>
+                <button onclick="updateStatus('접수', event)">접수</button>
+                <button onclick="updateStatus('⚙️ 처리 중', event)">처리 중</button>
+                <button onclick="updateStatus('✅ 처리 완료', event)">처리 완료</button>
+                <button onclick="updateStatus('❌ 승인 거절', event)">승인 거절</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const API_BASE = "http://127.0.0.1:8000/api";
+    let currentUserData = { id: 1, role: 'student' };
+    
+    /**
+     * @description 역할 변경 시 권한 갱신
+     */
+    async function onRoleChange() {
+        const selectedRole = document.getElementById('roleSelect').value;
+        sessionStorage.setItem('savedRole', selectedRole);
+        try {
+            const res = await fetch(`${API_BASE}/complaints/users?role=${selectedRole}`);
+            if (!res.ok) throw new Error("네트워크 응답 오류");
+            const users = await res.json();
+            
+            const userSelect = document.getElementById('userSelect');
+            userSelect.innerHTML = ''; 
+
+            if (users.length === 0) {
+                userSelect.innerHTML = '<option value="">유저 없음</option>';
+            } else {
+                users.forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u.id;
+                    opt.textContent = `${u.name} (${u.username})`;
+                    userSelect.appendChild(opt);
+                });
+            }
+
+            // 세션 저장소에 저장된 유저 ID가 있다면 해당 유저 선택
+            const savedUserId = sessionStorage.getItem('savedUserId');
+            if (savedUserId && userSelect.querySelector(`option[value="${savedUserId}"]`)) {
+                userSelect.value = savedUserId;
+            }
+
+            onUserChange();
+        } catch (error) {
+            console.error("유저 목록 로드 실패:", error);
+        }
+    }
+
+    /**
+     * @description 실제 유저 계정 변경 시 권한 셋업
+     */
+    function onUserChange() {
+        const role = document.getElementById('roleSelect').value;
+        const userIdVal = document.getElementById('userSelect').value;
+        
+        if (role) sessionStorage.setItem('savedRole', role);
+        if (userIdVal) sessionStorage.setItem('savedUserId', userIdVal);
+
+        currentUserData = { 
+            id: userIdVal ? parseInt(userIdVal) : 0, 
+            role: role.toLowerCase() 
+        };
+
+        document.getElementById('summary').readOnly = (currentUserData.role === 'admin');
+        document.getElementById('complaintModal').classList.add('hidden');
+        loadComplaints('');
+    }
+
+    /**
+     * @description 목록 조회 (API)
+     * @param {string} categoryFilter - 필터링 카테고리
+     */
+    async function loadComplaints(categoryFilter = '') {
+        try {
+            let url = `${API_BASE}/complaints?current_user_id=${currentUserData.id}`;
+            if (categoryFilter) url += `&category=${encodeURIComponent(categoryFilter)}`;
+            
+            const res = await fetch(url);
+            const data = await res.json();
+            renderFeed(data);
+        } catch (error) {
+            console.error("목록 조회 실패:", error);
+        }
+    }
+
+    /**
+     * @description 피드 렌더링. 학생 권한일 시 상세보기 진입 경로 원천 차단.
+     * @param {Array} complaints - 렌더링할 객체 배열
+     */
+    function renderFeed(complaints) {
+        console.assert(Array.isArray(complaints), "Type Hint Error: complaints는 배열이어야 합니다.");
+        
+        const container = document.getElementById('feedContainer');
+        container.innerHTML = '';
+
+        if(complaints.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #888; padding: 20px;">등록된 민원이 없습니다.</p>';
+            return;
+        }
+
+        // DOM 업데이트를 최적화하여 렌더링 부하 최소화
+        complaints.forEach(item => {
+            const likeClass = item.is_liked_by_me ? 'liked' : 'unliked';
+            const likeText = item.is_liked_by_me ? '❤️ 공감완료' : '🤍 공감하기';
+            const disabledAttr = item.is_liked_by_me ? 'disabled' : '';
+
+            // [핵심 변경] 관리자 전용 '상세보기' 버튼 분기
+            const detailBtn = currentUserData.role === 'admin' 
+                ? `<button onclick="openDetail(${item.id})" style="padding: 5px 10px; background: #f8f9fa; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">🔍 상세보기</button>` 
+                : '';
+
+            const card = document.createElement('div');
+            card.className = 'feed-card';
+            // [핵심 변경] 인덱스 번호 및 작성일시 추가, 첨부파일 링크 제거
+            card.innerHTML = `
+                <div style="margin-bottom: 8px;">
+                    <strong>[No. ${item.id}] [${item.category}]</strong>
+                    <span style="font-size: 13px; color: #666; margin-left: 10px;">🕒 ${item.created_at || '검증 불가'}</span>
+                    <span style="float:right; color:#007bff; font-weight:bold;">[${item.status}]</span>
+                </div>
+                <p style="margin: 10px 0; font-size: 15px;">💡 ${item.summary}</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                    <button class="btn-like ${likeClass}" ${disabledAttr} onclick="toggleLike(${item.id})">
+                        ${likeText} (${item.like_count})
+                    </button>
+                    ${detailBtn}
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    /**
+     * @description 작성 모달 오픈
+     */
+    function openWriteModal() {
+        resetForm();
+        document.getElementById('formTitle').innerText = "📝 새 민원 작성";
+        document.getElementById('rawContentGroup').classList.remove('hidden');
+        document.getElementById('studentActionGroup').classList.remove('hidden');
+        document.getElementById('adminActionGroup').classList.add('hidden');
+        document.getElementById('complaintModal').classList.remove('hidden');
+    }
+
+    /**
+     * @description 상세 조회 로직 (관리자 전용)
+     * @param {number} id - 대상 ID
+     */
+    async function openDetail(id) {
+        console.assert(Number.isInteger(id), "Type Hint Error: 민원 ID는 정수여야 합니다.");
+        
+        // [보안 대처] 콘솔(F12) 우회 실행 방어
+        if (currentUserData.role !== 'admin') {
+            return alert("학생은 접근 권한이 없습니다.");
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/complaints?current_user_id=${currentUserData.id}`);
+            const data = await res.json();
+            const target = data.find(c => c.id === id);
+            
+            if(!target) return alert("해당 민원을 찾을 수 없습니다.");
+
+            document.getElementById('formTitle').innerText = "🔍 민원 상세 조회";
+            document.getElementById('currentComplaintId').value = target.id;
+            document.getElementById('category').value = target.category;
+            document.getElementById('summary').value = target.summary;
+
+            const photoInput = document.getElementById('photoUrl');
+            photoInput.value = target.photo_url || '';
+            if (target.photo_url) {
+                photoInput.style.cursor = 'pointer';
+                photoInput.style.color = '#007bff';
+                photoInput.style.textDecoration = 'underline';
+                photoInput.onclick = () => window.open(target.photo_url, '_blank');
+            }
+
+            // 불필요한 학생 권한 검증 분기문 완전히 삭제 (관리자 로직만 유지)
+            document.getElementById('rawContentGroup').classList.remove('hidden');
+            document.getElementById('rawContent').value = target.raw_content;
+            document.getElementById('studentActionGroup').classList.add('hidden');
+            document.getElementById('adminActionGroup').classList.remove('hidden');
+            
+            // [핵심 변경] 관리자 상세보기 시 AI 요약 버튼 숨김
+            document.getElementById('btnSummarize').classList.add('hidden');
+
+            document.getElementById('complaintModal').classList.remove('hidden');
+        } catch (error) {
+            console.error("상세 조회 실패:", error);
+        }
+    }
+
+    /**
+     * @description 모달 닫기
+     */
+    function closeModal() {
+        resetForm();
+        document.getElementById('complaintModal').classList.add('hidden');
+    }
+
+    /**
+     * @description 입력 폼 초기화 (전이 방지)
+     */
+    function resetForm() {
+        document.getElementById('currentComplaintId').value = '';
+        document.getElementById('rawContent').value = '';
+        document.getElementById('summary').value = '';
+
+        const photoInput = document.getElementById('photoUrl');
+        photoInput.value = '';
+        photoInput.style.cursor = 'default';
+        photoInput.style.color = '#000';
+        photoInput.style.textDecoration = 'none';
+        photoInput.onclick = null;
+
+        // [핵심 대처] 모달이 닫히거나 열릴 때 항상 요약 버튼 표시 상태 원복
+        document.getElementById('btnSummarize').classList.remove('hidden');
+    }
+
+    // 통신 및 공감, 요약 기능 (기존 로직 유지)
+    async function toggleLike(complaintId) {
+        try {
+            const res = await fetch(`${API_BASE}/complaints/${complaintId}/like`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: currentUserData.id })
+            });
+            if (res.ok) loadComplaints('');
+        } catch (error) {
+            console.error("공감 처리 실패:", error);
+        }
+    }
+
+    async function previewSummary() {
+        const category = document.getElementById('category').value;
+        const rawContent = document.getElementById('rawContent').value;
+        if (!rawContent) return alert("원문을 입력하세요.");
+
+        try {
+            const res = await fetch(`${API_BASE}/complaints/summarize`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ category, raw_content: rawContent })
+            });
+            const data = await res.json();
+            document.getElementById('summary').value = data.summary;
+        } catch (error) {
+            console.error("요약 실패:", error);
+        }
+    }
+
+    async function submitComplaint() {
+        const categoryVal = document.getElementById('category').value;
+        const rawContentVal = document.getElementById('rawContent').value;
+        let summaryVal = document.getElementById('summary').value.trim() || "AI 요약을 진행하지 않은 민원입니다.";
+
+        if (categoryVal === "비공개 - 기타") summaryVal = "비공개 민원입니다.";
+        if (!rawContentVal.trim()) return alert("원문 내용을 입력해주세요.");
+
+        try {
+            const res = await fetch(`${API_BASE}/complaints`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: currentUserData.id,
+                    category: categoryVal,
+                    raw_content: rawContentVal,
+                    summary: summaryVal,
+                    photo_url: document.getElementById('photoUrl').value || null
+                })
+            });
+            if (res.ok) {
+                alert("민원이 제출되었습니다!");
+                closeModal();
+                loadComplaints('');
+            }
+        } catch (error) {
+            console.error("제출 실패:", error);
+        }
+    }
+
+async function updateStatus(newStatus, event) {
+        if (event) event.preventDefault();
+        
+        const id = document.getElementById('currentComplaintId').value;
+        if (!id) return alert("상태를 변경할 민원을 선택하세요.");
+
+        // 세션 저장소에 현재 관리자 정보 강제 고정
+        const activeRole = document.getElementById('roleSelect').value;
+        const activeUserId = document.getElementById('userSelect').value;
+        sessionStorage.setItem('savedRole', activeRole);
+        sessionStorage.setItem('savedUserId', activeUserId);
+
+        try {
+            const res = await fetch(`${API_BASE}/complaints/${id}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            });
+            
+            if (res.ok) {
+                alert(`상태가 [${newStatus}]로 변경되었습니다.`);
+                
+                document.getElementById('complaintModal').classList.add('hidden');
+                
+                document.getElementById('currentComplaintId').value = '';
+                document.getElementById('rawContent').value = '';
+                document.getElementById('summary').value = '';
+                const photoInput = document.getElementById('photoUrl');
+                photoInput.value = '';
+                photoInput.style.cursor = 'default';
+                photoInput.style.color = '#000';
+                photoInput.style.textDecoration = 'none';
+                photoInput.onclick = null;
+                document.getElementById('btnSummarize').classList.remove('hidden');
+
+                await loadComplaints('');
+            }
+        } catch (error) {
+            console.error("상태 변경 실패:", error);
+        }
+    }
+
+    window.onload = async () => {
+        // 새로고침되더라도 세션에 저장된 관리자 역할이 있다면 복원
+        const savedRole = sessionStorage.getItem('savedRole');
+        if (savedRole) {
+            document.getElementById('roleSelect').value = savedRole;
+        }
+        await onRoleChange();
+    };
+</script>
+</body>
+</html>
