@@ -15,4 +15,6 @@ data/menu/vector_store.json
 data/_ocr_previews/
 
 # PaddleOCR 모델 캐시 (비 ASCII 사용자 경로 문제를 피하려고 프로젝트 루트 아래에 둠, 팀원마다 로컬에서 자동 생성)
+.paddlex_cache/notice_agent_log.txt
+retriever_log.txt
 .paddlex_cache/
