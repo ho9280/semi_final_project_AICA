@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>공지사항 | 광주인공지능사관학교</title>
+<style>
+  :root{
+    --bg:#F4F6FB;
+    --surface:#FFFFFF;
+    --border:#E3E7F0;
+    --text:#1B1E29;
+    --text-muted:#6B7280;
+    --text-faint:#9CA3AF;
+    --accent:#2F5FE0;
+    --accent-ink:#1D3FA6;
+    --accent-soft:#EAF0FE;
+    --new-bg:#FFF1E9;
+    --new-text:#D9611E;
+    --radius:14px;
+    --radius-sm:9px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{
+    max-width:720px;
+    margin:0 auto;
+    padding:28px 20px 80px;
+  }
+
+  /* Header */
+  .topbar{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:4px;
+  }
+  .back-btn{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    border:none;
+    background:transparent;
+    color:var(--text-muted);
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    padding:6px 4px;
+    border-radius:8px;
+  }
+  .back-btn:hover{ background:var(--accent-soft); color:var(--accent-ink); }
+
+  .title-row{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin:14px 0 20px;
+  }
+  .title-row h1{
+    font-size:26px;
+    font-weight:800;
+    letter-spacing:-0.02em;
+    margin:0;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .title-row .count{
+    font-size:14px;
+    color:var(--text-muted);
+    font-weight:600;
+  }
+
+  /* Search */
+  .search-wrap{
+    position:relative;
+    margin-bottom:18px;
+  }
+  .search-wrap svg{
+    position:absolute;
+    left:14px;
+    top:50%;
+    transform:translateY(-50%);
+    stroke:var(--text-faint);
+  }
+  .search-wrap input{
+    width:100%;
+    padding:13px 14px 13px 40px;
+    border-radius:12px;
+    border:1.5px solid var(--border);
+    background:var(--surface);
+    font-size:15px;
+    color:var(--text);
+    outline:none;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .search-wrap input:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft);
+  }
+  .search-hint{
+    margin:8px 2px 0;
+    font-size:12.5px;
+    color:var(--text-faint);
+  }
+
+  /* List */
+  .list{
+    margin-top:18px;
+    border-radius:var(--radius);
+    overflow:hidden;
+    border:1px solid var(--border);
+    background:var(--surface);
+  }
+  .row{
+    border-bottom:1px solid var(--border);
+  }
+  .row:last-child{ border-bottom:none; }
+
+  .row-head{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:16px 18px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .row-head:hover{ background:#FAFBFF; }
+
+  .no-badge{
+    flex:0 0 auto;
+    min-width:34px;
+    text-align:center;
+    font-size:12.5px;
+    font-weight:700;
+    color:var(--text-faint);
+    font-variant-numeric:tabular-nums;
+  }
+  .row-main{
+    flex:1 1 auto;
+    min-width:0;
+  }
+  .row-title-line{
+    display:flex;
+    align-items:center;
+    gap:7px;
+  }
+  .row-title{
+    font-size:15px;
+    font-weight:600;
+    color:var(--text);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .new-badge{
+    flex:0 0 auto;
+    font-size:10.5px;
+    font-weight:800;
+    color:var(--new-text);
+    background:var(--new-bg);
+    padding:2px 6px;
+    border-radius:6px;
+    letter-spacing:0.02em;
+  }
+  .clip-badge{
+    flex:0 0 auto;
+    font-size:13px;
+    color:var(--text-faint);
+  }
+  .row-date{
+    margin-top:3px;
+    font-size:12.5px;
+    color:var(--text-muted);
+    font-variant-numeric:tabular-nums;
+  }
+  .chevron{
+    flex:0 0 auto;
+    color:var(--text-faint);
+    transition:transform .18s ease;
+  }
+  .row.open .chevron{ transform:rotate(180deg); color:var(--accent); }
+
+  .row-body{
+    max-height:0;
+    overflow:hidden;
+    transition:max-height .22s ease;
+    background:#FBFCFE;
+  }
+  .row.open .row-body{ max-height:2000px; }
+  .row-body-inner{
+    padding:2px 18px 20px 62px;
+  }
+  .notice-content{
+    white-space:pre-wrap;
+    word-break:break-word;
+    font-size:14px;
+    line-height:1.65;
+    color:#3A3F4B;
+    margin:0 0 14px;
+  }
+  .attachments{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .attachment-link{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    width:fit-content;
+    padding:9px 13px;
+    border-radius:10px;
+    background:var(--accent-soft);
+    color:var(--accent-ink);
+    text-decoration:none;
+    font-size:13.5px;
+    font-weight:700;
+  }
+  .attachment-link:hover{ background:#DDE7FE; }
+  .attachment-link .ext{
+    font-size:10.5px;
+    font-weight:800;
+    background:var(--accent);
+    color:#fff;
+    padding:1px 5px;
+    border-radius:4px;
+    text-transform:uppercase;
+  }
+
+  /* Empty / loading */
+  .empty-state{
+    padding:60px 20px;
+    text-align:center;
+    color:var(--text-muted);
+    font-size:14px;
+  }
+  .empty-state .icon{ font-size:30px; margin-bottom:10px; }
+
+  .sentinel{
+    height:1px;
+  }
+  .load-tail{
+    text-align:center;
+    padding:16px 0 4px;
+    font-size:12.5px;
+    color:var(--text-faint);
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <button class="back-btn" onclick="history.back()" aria-label="메인으로 돌아가기">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        메인으로
+      </button>
+    </div>
+
+    <div class="title-row">
+      <h1>📌 공지사항</h1>
+      <span class="count" id="countLabel"></span>
+    </div>
+
+    <div class="search-wrap">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input id="searchInput" type="text" placeholder="제목으로 검색" autocomplete="off">
+    </div>
+    <div class="search-hint">제목 기준으로만 검색됩니다</div>
+
+    <div class="list" id="listEl"></div>
+    <div class="load-tail" id="loadTail"></div>
+    <div class="sentinel" id="sentinel"></div>
+  </div>
+
+<script id="notices-data" type="application/json">[{"notice_id": 38, "title": "ESTAIC 자격증 시험 안내", "release_date": "2026-07-21", "content": "안녕하세요, 교육생 여러분!\n교육생 전원을 대상으로 ESTAIC 자격증 시험을 아래와 같이 진행합니다.\n🗓 시험 일시\n8월 13일(목) 오후 2:00\n📍 시험 장소\n각 반 교육장 내 본인 좌석\n📝 시험 안내\n지정된 시간에 전 교육생이 일괄 응시합니다.\nESTAIC 자격증은 교육과정에서 학습한 AI 역량을 점검하고, 향후 취업 및 포트폴리오에 활용할 수 있는 하나의 성과로 남길 수 있는 자격증입니다.\n교육생 여러분께도 도움이 될 수 있는 기회인 만큼 적극적으로 응시해 주시기 바랍니다.\n📎 첨부파일\nESTAIC 자격증 출제영역\n출제영역을 참고하여 시험을 준비해 주시기 바라며, 원활한 시험 진행을 위해 시험 시작 10분 전까지 본인 좌석에 착석해 주시기 바랍니다.\n시험 응시 방법은 추후 자세히 안내해 드리겠습니다 :)\n감사합니다. 😊", "attachments": [{"file_name": "ESTAIC_자격증_초급_출제_영역.pdf.pdf", "file_type": "pdf", "url": "./AICA_notice/notice_attachment/38/ESTAIC_자격증_초급_출제_영역.pdf.pdf"}]}, {"notice_id": 37, "title": "프로젝트 기간 인프런구독권 제공안내(인프런 계정 및 PW안내)", "release_date": "2026-07-16", "content": "안녕하세요.\n인공지능사관학교 운영팀입니다.\n📚 프로젝트 기간에도 학습은 계속됩니다!\n이제 프로젝트 기간에 들어가면서 \"이 부분은 다시 듣고 싶다\", \"조금 더 공부가 필요하다\"는 생각이 드는 분들도 있을 것 같습니다.\n그래서 프로젝트 기간 동안 부족했던 내용을 자유롭게 보완할 수 있도록 인프런 구독권을 제공합니다.\n✔ 이해가 부족했던 수업 복습하기\n✔ 프로젝트에 필요한 기술 다시 학습하기\n✔ 헷갈렸던 개념 정리하기\n프로젝트를 진행하다 막히는 부분이 있다면 구독권을 적극 활용해 보세요. 💪\n-구독권 안내\n* 제공 대상 : 도약과정 참여 교육생\n* 이용 기간 : 2026년 7월 22일부터 한달간\n* 활용 방법 : 자유롭게 필요한 강의를 선택하여 수강\n📌 이용방법\nID : 매월 여정표를 수신하는 이메일 주소\nPW : 해당 이메일 주소의 @ 앞부분\n예) aischool@abcdefg.com / 비밀번호 : aischool\n※ 계정 보안을 위해 최초 로그인 후 비밀번호를 반드시 변경해주시기 바랍니다.\n📧 인프런 초대 메일 안내\n7/22(수) 오전 10시 이후 순차적으로 초대메일이 발송될 예정입니다.\n감사합니다.", "attachments": []}, {"notice_id": 36, "title": "프로젝트 기간 인프런구독권 제공안내", "release_date": "2026-07-16", "content": "안녕하세요.\n인공지능사관학교 운영팀입니다.\n📚 프로젝트 기간에도 학습은 계속됩니다!\n이제 프로젝트 기간에 들어가면서 \"이 부분은 다시 듣고 싶다\", \"조금 더 공부가 필요하다\"는 생각이 드는 분들도 있을 것 같습니다.\n그래서 프로젝트 기간 동안 부족했던 내용을 자유롭게 보완할 수 있도록 인프런 구독권을 제공합니다.\n✔ 이해가 부족했던 수업 복습하기\n✔ 프로젝트에 필요한 기술 다시 학습하기\n✔ 헷갈렸던 개념 정리하기\n프로젝트를 진행하다 막히는 부분이 있다면 구독권을 적극 활용해 보세요. 💪\n-구독권 안내\n* 제공 대상 : 도약과정 참여 교육생\n* 이용 기간 : 2026년 7월 22일부터 한달간\n* 활용 방법 : 자유롭게 필요한 강의를 선택하여 수강\n* 이용 방법 : ID(성적표가 발송되는 이메일 주소) PW는 추후 안내\n프로젝트는 결과도 중요하지만, 학습을 통해 성장하는 과정이 더욱 중요합니다.\n※ 쳠부된 파일에서 추천강의 목록을 참고해주세요!\n감사합니다.", "attachments": [{"file_name": "추천강의_리스트.pdf.pdf", "file_type": "pdf", "url": "./AICA_notice/notice_attachment/36/추천강의_리스트.pdf.pdf"}]}, {"notice_id": 35, "title": "전국민 AI경진대회 AI 오류찾기 시즌2 챌린지 개시(7.13. ~ 8.31.)", "release_date": "2026-07-15", "content": "전국민 AI 경진대회의 <AI오류찾기 시즌2 챌린지>가 시작되었습니다!\n시즌2에서는 친구 초대 특별 보상이 새로 생겼사오니 많은 참여 부탁드립니다.\nㅇAI 오류찾기 챌린지란?\nAI 서비스를 쓰다가 발견한 오류를 가볍게 등록하면 참여 완료, 누구나 부담 없이 신청할 수 있습니다.\n시즌별 천명을 추첨해서 모바일상품권(3만원)을 드립니다.\nㅇ참가대상 : 국민 누구나\nㅇ참여방법 :\n1. 생성형 AI 서비스 이용 중 오류 발견\n2. 오류 화면 캡처하여 등록하기\nㅇ참여링크 : 전국민 AI경진대회 홈페이지: https://aichallenge4all.or.kr/about\nㅇ경품 : 시즌별 1,000명 추첨해서 모바일상품권(3만원) 지급", "attachments": [{"file_name": "AI오류찾기_시즌2챌린지_포스터.png.png", "file_type": "png", "url": "./AICA_notice/notice_attachment/35/AI오류찾기_시즌2챌린지_포스터.png.png"}]}, {"notice_id": 34, "title": "6월 우수교육생 시상 내역 안내", "release_date": "2026-07-14", "content": "안녕하세요.\n인공지능사관학교 운영팀입니다.\n6월 우수교육생으로 선정된 교육생 여러분, 진심으로 축하드립니다🎉\n아래와 같이 시상 내역을 안내드립니다.\n🎁 시상내역\n* 배달의 민족 상품권 50,000원\n* 인공지능사관학교 텀블러 증정\n다시 한번 6월 우수교육생으로 선정된 교육생 여러분께 축하의 말씀을 드립니다.\n다음 우수교육생의 주인공은 여러분이 될 수 있습니다.\n7월에도 꾸준한 학습과 적극적인 참여를 기대하겠습니다. 💪\n감사합니다.", "attachments": [{"file_name": "6월_우수_교육생.png.png", "file_type": "png", "url": "./AICA_notice/notice_attachment/34/6월_우수_교육생.png.png"}]}, {"notice_id": 33, "title": "Shiftee(시프티) 사용법 온보딩", "release_date": "2026-07-14", "content": "안녕하세요.\n인공지능사관학교 운영팀입니다.\nAI도약과정 기간(프로젝트 기간) 동안 출석 관리 및 프로젝트 지원금 신청을 위해 Shiftee(시프티) 플랫폼을 사용할 예정입니다.\n원활한 플랫폼 이용을 위해 아래와 같이 시프티 활용 교육을 진행하오니 교육생 여러분께서는 반드시 시청해주시기 바랍니다.\n📅 교육일정\n- 일시 : 26. 07. 14 (화) 10:00 - 10:30\n📚 교육내용\n- 출석체크 방법\n- 품의 신청 방법 : 출장 신청 방법(외부 멘토링 진행시), 프로젝트 지원금 정산 신청\n🔗 참여 링크 : https://meet.google.com/cnp-sxmu-pia\n📌안내사항\n- 프로젝트 기간 동안 출석 체크와 프로젝트 지원금 정산 신청은 Shiftee를 통해 진행될 예정입니다.\n- 프로젝트 운영에 필요한 필수 플랫폼 교육으로 반드시 시청해주시기 바랍니다.\n감사합니다.", "attachments": []}, {"notice_id": 31, "title": "7월 TALK UP 행사 안내", "release_date": "2026-07-14", "content": "안녕하세요!\n인공지능사관학교입니다👋\n여러분들과 사관학교의 유대감 형성을 위한 소통의 장!\n매월 한 번, 인공지능사관학교 전체 교육생과 운영진이 함께하는 Talk Up 행사에 여러분을 초대합니다!\nTalk Up에서는\n✔ 따뜻한 칭찬이 오가는 [인사교 킹오브킹]\n✔ 서로의 경험을 나누는 [인사교 쇼케이스]\n✔ 함께 성장하는 이야기를 듣는 [공감 우체통]\n✔ 사관학교와 소통하는 [인사교 더 나은 내일/무엇이든 물어보살]\n🗓 일시: 2026년 7월 14일(화) 16:00~16:30\n📍 참여 링크: https://meet.google.com/sng-dwuw-caf\n🎤 대상: 인공지능사관학교 전 교육생\n🎁 칭찬합시다와 인사교 쇼케이스를 진행한 교육생에게는 소정의 선물 제공\n[참여 설문 안내]\n📪 인사교 킹오브킹\n평소 칭찬하고 싶은 교육생, 운영진, 강사님, 멘토님(보조강사)가 있다면 아래 링크를 통해서 추천해주세요!\n칭찬설문 링크: https://forms.gle/JNExdHDGRWeAhob37\n📮 공감 우체통\n평소 사관학교에 대해 궁금했던 점 혹은 소통하고 싶은 내용들을 작성해주세요!\n소통함 링크: https://forms.gle/fBTYgDYiW2LZDPmR7\n📮 무엇이든 물어보살\n무엇이든 물어보살 : https://forms.gle/fjVNo3Y6WSW7oEtQ9\n성장하는 여러분의 목소리를 들려주고\n함께 나누고, 함께 웃는 \"Talk Up\", 절대 놓치지 마세요!\n감사합니다.", "attachments": []}, {"notice_id": 32, "title": "[AI 도약과정] 핸드북 및 안내자료", "release_date": "2026-07-08", "content": "AI 도약과정 프로젝트를 시작하기에 앞서 AI 도약과정 핸드북과 프로젝트 유형 안내자료를 공유드립니다.\n도약과정에서는 기업 프로젝트, 실증 프로젝트, 창업 프로젝트 중 본인의 진로와 목표에 맞는 프로젝트 유형을 선택하게 됩니다.\n프로젝트 유형별로 커리어 방향과 주요 수행 내용이 서로 다르므로, 첨부된 핸드북과 안내자료를 반드시 꼼꼼히 확인하시어 본인에게 가장 적합한 프로젝트 유형이 무엇인지 충분히 고민해 보시기 바랍니다.\n이번에 공유드리는 자료는 프로젝트 유형 선택뿐만 아니라, 도약과정의 전체 운영 방식과 팀 편성, 매칭데이, 멘토링 등 프로젝트 진행에 필요한 주요 내용을 담고 있는 안내자료이므로, 반드시 한 번 이상 정독해 주시기 바랍니다!\n감사합니다.", "attachments": [{"file_name": "7기_AI 도약과정_핸드북.pdf.pdf", "file_type": "pdf", "url": "./AICA_notice/notice_attachment/32/7기_AI 도약과정_핸드북.pdf.pdf"}, {"file_name": "7기_AI_도약과정_안내.pdf.pdf", "file_type": "pdf", "url": "./AICA_notice/notice_attachment/32/7기_AI_도약과정_안내.pdf.pdf"}]}, {"notice_id": 30, "title": "이스트 인공지능 전문가 자격증(ESTAIC) 안내 및 응시 희망자 수요조사", "release_date": "2026-07-03", "content": "안녕하세요.\n인공지능사관학교 운영팀입니다.\n🎉 이스트소프트 AI 역량 검증 자격증, ESTAIC를 소개합니다!\n현재 나의 AI 기초 역량을 객관적으로 점검하고 실무 역량까지 함께 검증해보고 싶다면 ESTAIC 자격증에 도전해보세요!\nESTAIC는 초급(Basic) → 중급(Professional) → 고급(Expert) 3단계로 구성된 AI 민간 자격증으로, AI 개발 및 활용 역량을 체계적으로 검증할 수 있습니다.\n이번에는 초급(Basic) 시험 응시 희망자를 대상으로 수요 조사를 진행하고자 합니다.\n응시를 희망하는 교육생은 아래 설문을 작성해주시기 바랍니다.\n📅 예상 시험 일정 : 7월 말\n📌 설문링크 : https://forms.gle/QiHTk9u3ZNAQHnXh7\n※ 시험 응시를 희망하는 경우 구름EDU ID를 함께 작성해 주셔야 시험 응시 권한이 부여됩니다.\n※ 세부 일정은 수요 조사 결과를 바탕으로 추후 안내 드리겠습니다.\nAI 역량을 객관적으로 확인하고 가장 먼저 도전할 수 있는 기회인 만큼 많은 관심과 참여 부탁 드립니다.\n💪 ESTAIC 와 함께 AI 역량을 한 단계 성장시켜 보세요!", "attachments": [{"file_name": "ESTAIC_자격증_포스터.png.png", "file_type": "png", "url": "./AICA_notice/notice_attachment/30/ESTAIC_자격증_포스터.png.png"}]}, {"notice_id": 29, "title": "[도약과정 안내 설명회 진행 안내]", "release_date": "2026-06-30", "content": "안녕하세요!\n인공지능사관학교입니다.\n5월부터 진행되었던 AI준비과정동안 여러분들이 학습해온 AI 이론과 기술을 실제 프로젝트로 연결하는 도약과정에 대해 여러분들의 궁금증을 해소시킬 시간을 드디어 마련했습니다.\nAI도약과정은 지금까지 배운 내용을 바탕으로 직접 프로젝트를 기획하고 구현하며, 실무 역량을 키워나가는 중요한 과정입니다.\n해당 설명회를 통해 프로젝트 진행 방식 등 AI도약과정 전반에 대한 내용을 설명드릴 예정이니 모두 참여해 주시기 바랍니다\n📌 일시\n2026년 7월 1일(수) 17:30 ~ 18:00, 당일 링크 전달 예정\n📌 내용\n· 도약과정 소개\n· 프로젝트 진행 방향 및 운영 방식 안내\n· 주요 일정 안내\n· 질의응답\n감사합니다.", "attachments": []}, {"notice_id": 28, "title": "[7월 한정 이벤트] AWS · NAVER Cloud 자격증 취득하고 바람막이 받자!", "release_date": "2026-06-29", "content": "안녕하세요, 인공지능사관학교입니다.\n7월 한 달간 AWS 또는 NAVER Cloud 자격증을 취득한 교육생에게 바람막이를 증정합니다!\n📅 이벤트 기간\n2026.07.01 ~ 2026.07.31\n🎯 참여 대상\nAWS 또는 NAVER Cloud 자격증을 취득한 교육생\n🎁 이벤트 혜택\n바람막이 1벌 증정\n📌 참여 방법\nAWS 또는 NAVER Cloud 자격증 취득\n구글폼을 통해 합격증 제출\n운영진 확인 후 바람막이 증정\n🔗 합격증 제출 구글폼 https://forms.gle/uznorNZnTJpaqvKe7\n※ 이벤트 기간 내 취득한 자격증에 한하여 인정됩니다.\n※ 바람막이 수령 일정은 별도 안내드릴 예정입니다.\n※ 상품 소진 시 이벤트가 조기 종료될 수 있습니다.\n이번 기회를 통해 자격증도 취득하고, 특별한 이벤트 혜택도 함께 받아가세요!", "attachments": [{"file_name": "7월_자격증_취득_이벤트.png.jpg", "file_type": "jpg", "url": "./AICA_notice/notice_attachment/28/7월_자격증_취득_이벤트.png.jpg"}]}, {"notice_id": 27, "title": "6월 성장과정 만족도 조사 안내", "release_date": "2026-06-26", "content": "안녕하세요 여러분! 😊\n어느덧 6월도 마무리되어 가고 있습니다.\n한 달 동안 새로운 내용을 배우고, 과제를 수행하고, 시험과 프로젝트를 준비하며 정말 고생 많으셨습니다. 바쁜 일정 속에서도 꾸준히 성장하기 위해 노력해주신 여러분께 진심으로 감사드립니다.\n6월을 마무리하며 월간 성장과정 만족도 조사가 진행됩니다.\n이번 설문은 강의, 멘토링, 운영 지원, 학습 환경 등 교육 과정 전반에 대한 여러분의 경험을 확인하고 앞으로 더 좋은 교육 환경을 만들어가기 위해 진행됩니다.\n교육을 받으며 도움이 되었던 점, 기억에 남는 좋은 경험, 계속 이어졌으면 하는 부분, 그리고 개선되었으면 하는 점까지 편하게 작성해 주세요. 😊\n여러분의 의견 하나하나가 앞으로의 교육 운영과 학습 지원을 더욱 발전시키는 소중한 밑거름이 됩니다.\n특히 좋았던 부분은 앞으로도 계속 이어갈 수 있도록 아쉬웠던 부분은 더 나은 방향으로 개선할 수 있도록 적극적으로 검토하겠습니다.\n여러분의 소중한 의견이 더 좋은 교육 과정과 학습 환경을 만들어갑니다.\n모든 교육생분들께서는 확인하시는 대로 꼭 참여 부탁드립니다! 🙌\n📆 설문 기간 : ~ 6/30(화) 10:00\n📌 설문 참여 링크\nhttps://forms.gle/ouEQ9WgHSTLKfBgY9\n여러분의 한 달을 돌아보는 시간이라고 생각하시고 편하게 참여해 주세요.\n감사합니다! 😊", "attachments": []}, {"notice_id": 26, "title": "[리마인드] 인공지능사관학교 출결 관리 기준 안내", "release_date": "2026-06-23", "content": "안녕하세요, 인공지능사관학교 교육생 여러분!\n원활하고 성공적인 교육 수료를 위해 꼭 알아두어야 할 출결 관리 기준을 다시 한번 안내해 드립니다.\n출결은 성실한 교육 참여와 완주를 위한 가장 중요한 약속입니다.\n불이익이 발생하지 않도록 아래 내용을 반드시 확인해 주세요!\n1. 기본 출결 및 수료 기준\n수업 시작 시간: 오전 9시 정각\n개인 사정으로 지각하여 교실에 입실할 때는 다른 교육생들의 학업에 방해가 되지 않도록 조용히 입장해 주시기 바랍니다.\n수료 기준: 총 교육 일수의 80% 이상 출석 필수\n2. 지각·조퇴·외출 및 결석 처리 기준 - 9시에 와서 점심먹고 1시에 조퇴하면 결석처리되니 주의해주세요\n지각 · 조퇴 · 외출 :  각 항목 3회 누적 시 결석 1회로 차감 처리됩니다.\n결석 처리 기준: 수업에 참여하지 않거나, 1일 수업 시간의 50% 미만으로 참여할 경우 결석으로 처리됩니다.\n3. 공가(출석 인정) 신청 안내 - 누구든 해당일에 사용 가능합니다.\n질병, 경조사, 취업 면접, 예비군 훈련 등 부득이한 사유로 결석이 필요한 경우 공가를 신청할 수 있습니다.\n신청 방법: 디스코드 채널에 사전 신고\n증빙 필수: 신청 후 반드시 구글폼으로 증빙 서류를 제출해야 최종 출석으로 인정됩니다.\n꼭 기억해 주세요!\n디스코드 사전 신고와 증빙 서류 제출이 모두 완료되어야 공가 처리가 가능합니다.\n미제출 시 결석 처리될 수 있으니 유의 바랍니다.\n어떤 내용이든 궁금한 내용이 있다면 각반 담당 운영진에게 문의주세요!\n모두 마지막까지 지치지 말고 서로 이끌어주며 함께 완주해 봅시다.\n인공지능사관학교도 여러분의 빛나는 성장을 늘 응원합니다! 감사합니다.", "attachments": []}, {"notice_id": 25, "title": "5월 우수교육생 시상 내역 안내", "release_date": "2026-06-22", "content": "안녕하세요.\n인공지능사관학교 운영팀입니다.\n5월 우수교육생으로 선정된 교육생 여러분께 진심으로 축하드리며, 시상 내역을 안내드립니다.\n🎁 시상내역\n* 배달의 민족 상품권 50,000원\n* 인공지능사관학교 텀블러 증정\n※ 이미 지급된 손선풍기는 첫 달 우수교육생 선정 기념으로 제공된 추가 상품이며, 이번 달부터는 5만원권 상품과 인공지능사관학교 텀블러가 지급됩니다.\n우수 교육생은 누구에게나 열려 있는 만큼 6월에도 많은 교육생분들의 적극적인 참여와 성장을 기대하겠습니다. 🚀\n감사합니다.", "attachments": [{"file_name": "5월 우수 교육생.png", "file_type": "png", "url": "./AICA_notice/notice_attachment/25/5월 우수 교육생.png"}]}, {"notice_id": 24, "title": "교육생 건의함 운영 안내", "release_date": "2026-06-22", "content": "여러분 안녕하세요! 😊\n인공지능사관학교 교육 과정과 교육 환경에 대한 다양한 의견을 보다 편하게 전달하실 수 있도록 사업단 사무실에 건의함이 운영되고 있습니다.\n교육을 수강하면서 느낀 불편사항, 개선이 필요한 부분, 건의사항 또는 교육 환경과 관련된 다양한 의견이 있으시다면 자유롭게 작성하여 건의함에 제출해주시기 바랍니다.\n특히 평소 운영진이나 관계자에게 직접 이야기하기 어려웠던 내용이나 공개적으로 전달하기 부담스러웠던 의견도 편하게 작성해주시면 됩니다.\n여러분께서 남겨 주신 의견은 교육 환경 개선과 운영 품질 향상을 위한 참고 자료로 활용될 예정이며 보다 나은 교육 과정 운영을 위해 적극 검토하겠습니다.\n📝 건의함 이용 안내\n위치 : 사업단 사무실(1F 1사무실 옆 벽면)\n대상 : 인공지능사관학교 교육생 누구나\n내용 : 교육, 운영, 시설, 환경 등 건의 및 개선 의견\n작은 의견도 더 나은 교육 환경을 만드는 데 큰 도움이 됩니다.\n많은 관심과 참여 부탁드립니다. 😊\n감사합니다.", "attachments": []}, {"notice_id": 22, "title": "[운영공지] 성장과정 교육생 평가지표 안내", "release_date": "2026-06-15", "content": "안녕하세요.\n인공지능사관학교 운영팀입니다. 😊\n성장과정동안 아래 평가지표를 적용하여 운영할 예정입니다.\n성장과정 교육생평가는 단순한 성과뿐만 아니라 교육기간 동안의 꾸준한 참여와 성장 과정을 종합해서 평가됩니다.\n매월 스스로의 한계를 넘어 발전하는 모습을 보여주시고, 교육과정에 적극적으로 참여해 주시기 바랍니다.\n여러분의 성실한 노력과 도전이 좋은 결과로 이어질 수 있도록 운영팀도 함께 응원하겠습니다.\n평가지표와 관련하여 궁금한 사항이 있으신 경우 언제든 운영진에게 문의해 주세요.\n감사합니다.\n※ 평가지표는 운영 상황에 따라 일부 변경될 수 있습니다.", "attachments": [{"file_name": "성장과정_평가지표.png.png", "file_type": "png", "url": "./AICA_notice/notice_attachment/22/성장과정_평가지표.png.png"}]}, {"notice_id": 21, "title": "인공지능융합사업단(AICA) 온라인 무료 VOD 교육 안내", "release_date": "2026-06-10", "content": "🎯 현재 수강중인 전공 분야의 개념을 복습하고 심화 학습하고 싶다면?\n추가 학습과 자기주도 학습에 활용할 수 있는 온라인 무료 교육 플랫폼을 소개합니다.\n인공지능융합사업단(AICA)에서 운영하는 [AI융합 아카데미]는 AI·데이터 분야의 다양한 온라인 교육 콘텐츠를 무료로 제공하고 있으며\n언제 어디서나 자유롭게 학습할 수 있습니다.\n✅ 주요 내용\n- AI 데이터 분야 온라인 학습 플랫폼 제공\n- 실무 중심 AI 온라인 콘텐츠 운영\n- 입문 · 기초 · 심화 과정 등 총 31개 AI 특화 과정 제공\n- AI 직무 역량 향상을 위한 온라인 무료 교육 지원\n✅ 제공 분야\n- AI 입문\n- 데이터 기술\n- AI 모델링\n- AI 기반 서비스\n- AI 플랫폼&인프라\n- AI 비즈니스\n- AI 세미나\n💻 수강 방법\n1. 교육 채널 접속\n2. 회원 가입 진행\n3. 원하는 강의 신청 후 자유롭게 수강\n💡교육채널 : https://portal.atops.or.kr/lms\n프로젝트 준비, 복습, 관심 분야 심화 학습 등 다양한 목적으로 활용할 수 있으니 필요한 교육생들은 적극 활용해보시기 바랍니다 😊", "attachments": []}, {"notice_id": 20, "title": "[AI카페 제빙기 사용 안내]", "release_date": "2026-06-01", "content": "안녕하세요, 여러분. AI카페 내 비치된 제빙기가 전문 업체 청소를 완료하여 6/2부터 정상 사용 가능함을 안내 드립니다.\n쾌적한 이용을 위해 아래 사항을 꼭 준수해주시기 바랍니다.\n사용 후 얼음 스쿱은 반드시 제빙기 상단 제자리에 올려두기\n사용 후 제빙기 문을 꼭 닫기\n모두가 위생적으로 사용할 수 있도록 깨끗하게 이용하기\n서로 배려하는 사용 문화 조성에 협조 부탁드립니다.\n감사합니다.", "attachments": []}, {"notice_id": 19, "title": "인공지능사관학교 정규 교육 시작 시간 안내", "release_date": "2026-06-01", "content": "안녕하세요! 인공지능사관학교입니다:)\n인공지능사관학교 정규 교육 시간을 다시 한 번 안내 드립니다.\n간혹 지각 체크 시점인 오전 9시 10분을 실제 수업 시작 시간으로 혼동하는 경우가 있어 안내드리는 것이며\n오전 9시 10분은 지각 여부를 확인하는 기준 시점일 뿐, 교육은 오전 9시부터 정상적으로 진행됩니다.\n원활한 수업 참여를 위해 오전 9시 이전까지 착석 및 준비를 완료해주시길 부탁드리며\n모두가 함께 좋은 학습 분위기를 만들어갈 수 있도록 협조 부탁드리겠습니다.\n감사합니다 🙂", "attachments": []}, {"notice_id": 17, "title": "6월 Talk Up 행사 안내", "release_date": "2026-06-01", "content": "안녕하세요!\n인공지능사관학교입니다👋\n여러분들과 사관학교의 유대감 형성을 위한 소통의 장!\n매월 한 번, 인공지능사관학교 전체 교육생과 운영진이 함께하는 Talk Up 행사에 여러분을 초대합니다!\nTalk Up에서는\n✔ 따뜻한 칭찬이 오가는 [인사교 킹오브킹]\n✔ 서로의 경험을 나누는 [인사교 쇼케이스]\n✔ 함께 성장하는 이야기를 듣는 [공감 우체통]\n✔ 사관학교와 소통하는 [인사교 더 나은 내일/무엇이든 물어보살]\n🗓 일시: 2026년 6월 16일(화) 16:00~16:30\n📍 참여 링크: 추후 공지 예정\n🎤 대상: 인공지능사관학교 전 교육생\n🎁 칭찬합시다와 인사교 쇼케이스를 진행한 교육생에게는 소정의 선물 제공\n[참여 설문 안내]\n📪 인사교 킹오브킹\n평소 칭찬하고 싶은 교육생, 운영진, 강사님, 멘토님(보조강사)가 있다면 아래 링크를 통해서 추천해주세요!\n칭찬설문 링크: https://forms.gle/Gc7yF7ccvJWTuMqXA\n📮 공감 우체통\n평소 사관학교에 대해 궁금했던 점 혹은 소통하고 싶은 내용들을 작성해주세요!\n소통함 링크: https://forms.gle/xEiQuVc4Nx3qsct5A\n📮 무엇이든 물어보살\n무엇이든 물어보살 : https://forms.gle/VYpfmgw6vqa98hcg9\n성장하는 여러분의 목소리를 들려주고\n함께 나누고, 함께 웃는 \"Talk Up\", 절대 놓치지 마세요!\n감사합니다.", "attachments": [{"file_name": "TALK_UP _참여_가이드.pdf.pdf", "file_type": "pdf", "url": "./AICA_notice/notice_attachment/17/TALK_UP _참여_가이드.pdf.pdf"}]}, {"notice_id": 18, "title": "6월 일정표 안내", "release_date": "2026-05-29", "content": "6월 주요 일정표 안내 드리니 참고 부탁드리며\n6월달에는 인공지능사관학교 7기 교육생과 함께하는 talk up이 예정되어 있으니\n여러분들의 많은 참여 바랍니다", "attachments": [{"file_name": "6월_교육_일정표.png.png", "file_type": "png", "url": "./AICA_notice/notice_attachment/18/6월_교육_일정표.png.png"}]}, {"notice_id": 16, "title": "월간 만족도 조사 안내", "release_date": "2026-05-28", "content": "더 나은 교육 환경과 학습 경험을 만들어가기 위해 월간 만족도 조사를 진행합니다.\n강의, 멘토링, 운영 지원, 학습 환경 등 교육 과정 전반에 대해 여러분이 직접 경험하신 내용을 바탕으로 편하게 작성해주시면 됩니다.\n여러분의 의견은 이후 교육 운영과 학습 지원 방향을 점검하고, 좋은 부분은 더욱 강화하고 보완이 필요한 부분은 개선해나가기 위한 자료로 활용될 예정입니다.\n교육 과정에 참여하시며 느끼신 만족스러운 경험, 도움이 되었던 부분, 개선되면 좋겠다고 생각한 점까지 부담 없이 자유롭게 남겨주세요 🙂\n설문 참여를 통해 남겨주시는 의견 하나하나가 더 좋은 교육 과정과 학습 환경을 만들어가는 데 큰 도움이 됩니다.\n여러분의 적극적인 참여와 소중한 의견은 더 좋은 교육 과정과 학습 환경을 만들어가는 데 큰 힘이 됩니다.\n모든 분들께서는 확인하시는 대로 꼭 참여 부탁드립니다!🙌\n📆 설문 기간 : ~ 6월 1일 월요일 오전 10시까지\n<설문 참여 링크> https://forms.gle/59frSxdHabwqa2Wo8", "attachments": []}, {"notice_id": 15, "title": "AWS · 네이버클라우드 자격증 학습 및 바우처 지원 안내", "release_date": "2026-05-26", "content": "☁️ AI 시대, 클라우드는 이제 기본 역량!\n안녕하세요.\n인공지능사관학교 운영팀입니다.\nAI·데이터 분야 실무 환경에서 클라우드 활용 역량의 중요성이 점점 커지고 있습니다.\n교육생 여러분의 클라우드 역량 강화를 위해\nAWS Foundational 및 네이버클라우드 NCA 자격증 응시를 지원합니다.\n기초 자격증 취득 시 다음 단계 자격증까지 응시할 수 있도록 단계별 바우처도 지원 예정입니다.\n자세한 자격증 소개 및 학습 방법은 아래 첨부파일 참고 부탁드립니다.\n궁금하신 점은 각반 담당 운영진에게 문의하시기 바랍니다.\n지금 바로 학습하고 자격증 취득에 도전해보시기 바랍니다! 😊", "attachments": [{"file_name": "자격증_취득_안내.pdf.pdf", "file_type": "pdf", "url": "./AICA_notice/notice_attachment/15/자격증_취득_안내.pdf.pdf"}]}, {"notice_id": 14, "title": "교육장 학습 환경 조성 안내", "release_date": "2026-05-25", "content": "안녕하세요!\n인공지능사관학교입니다🫡\n원활한 교육 운영과 쾌적한 학습 환경 조성을 위해 타 반 출입은 가급적 자제해 주시기 바라며\n휴게실과 AI CAFE와 같은 공용공간을 활용하여 소통해 주시기 바랍니다.\n다른 교육생들의 수업 집중도와 학습 분위기에 영향을 줄 수 있으므로, 서로 배려하는 마음으로 협조 부탁드립니다❣️\n또한 개인 소지품 분실 및 관리 소홀로 인한 불편이 발생할 수 있는 만큼 귀중품과 개인 물품은 각자 철저히 관리해 주시기 바라며\n자리 이동이나 외출 시에도 소지품 확인을 생활화하여 분실 및 도난 사고를 예방할 수 있도록 각별히 유의해 주시면 감사하겠습니다.\n모든 교육생이 안전하고 질서 있는 환경에서 교육에 집중할 수 있도록 성숙한 공동체 의식과 상호 배려를 바탕으로 적극적인 협조 부탁드립니다.\n감사합니다🙇‍♀️", "attachments": []}, {"notice_id": 13, "title": "야간/주말 자율학습 운영 안내", "release_date": "2026-05-18", "content": "교육생 안녕하세요! 인공지능사관학교입니다:) 교육생 여러분의 자기주도 학습 역량 강화를 위해 자율 학습 시간을 운영합니다. 자율학습 시간에는 개인 프로젝트 수행, 학습 내용 복습, 코딩 테스트 준비 등 학습 목적에 맞게 자유롭게 활용해주시기 바랍니다! ⚠️ 자율학습은 교육생 여러분의 자율적인 참여와 협조를 바탕으로 운영되고 있습니다. 모두가 쾌적하게 이용할 수 있도록 여러분들의 협조 부탁 드리겠습니다. [자율학습 신청]\n평일 : 야간 자율 학습 / 야자-신고🌙 채널 통해 신청\n주말 : 야간 자율 학습 / 주말-신고🚴 채널 통해 신청\n신청 마감 시간 : 오후 5시\n[이용 및 퇴실]\n이용 가능 시간 : 평일(21시 55분까지) / 주말(9시-18시까지)\n퇴실 시 : 본인 작성 글에 ✅ 표시로 퇴실 확인\n마지막 퇴실자 : 소등 후 인증 사진 촬영 및 야간 자율 학습 / 소등-인증📷 채널 업로드 필수\n[이용 규칙 및 주의사항] - 이용 시 기본적인 정리 및 시설 이용 규칙을 준수해 주시기 바랍니다.\n평일은 22시에 소등하기 때문에 21시 55분까지 정리 후 퇴실해 주시기 바랍니다.\n개인 물품은 서로 건드리지 않도록 주의해 주시기 바랍니다.\n타인에게 불편을 주는 행동(소음, 자리 점유 등)은 자제해 주시기 바랍니다.\n사용 후 자리 정리 및 주변 정돈을 반드시 해주시기 바랍니다.\n자율 학습 이용 시 각 반에서 지정된 본인 자리에서 이용해 주시기 바랍니다.\n마지막 퇴실자의 소등 및 정리 정돈, 이용 수칙 등이 지속적으로 지켜지지 않을 경우 자율 학습 운영 시간 및 방식이 조정될 수 있습니다.\n감사합니다.", "attachments": []}, {"notice_id": 12, "title": "TIL(Today I Learned) 작성 안내", "release_date": "2026-05-18", "content": "안녕하세요 여러분!\nTIL(Today I Learned)은 하루 동안 학습한 내용을 스스로 정리하고 돌아보는 학습 기록 공간입니다.\n인공지능사관학교는 PBL(Project-Based Learning) 기반 학습 방식으로 진행되는 만큼,\n단순히 강의를 듣는 것에서 끝나는 것이 아니라 직접 학습 내용을 정리하고 회고하는 과정도 중요하게 생각하고 있습니다.\nTIL에는 아래와 같은 내용을 자유롭게 작성해주시면 됩니다.\n오늘 학습한 주요 내용 및 핵심 개념\n실습 내용 및 결과물\n새롭게 알게 된 점\n어려웠던 부분과 해결 과정\n개선할 점 및 다음 학습 계획\n함께 공유하고 싶은 자료 및 팁\n특히 단순한 내용 나열보다는\n“내가 어떻게 이해했고, 어떤 부분을 고민했는지”를 본인의 언어로 기록해보시는 것을 추천드립니다.\n또한 TIL 작성 여부 및 작성 내용은 월별 학습 평가 항목에 포함될 예정이므로 꾸준하고 성실하게 작성 부탁드립니다.\n✅ TIL 작성 시 기대할 수 있는 강점\n복습 자료 정리 : 학습 내용과 실습 결과를 체계적으로 누적 가능\n프로젝트 및 포트폴리오 활용 : 프로젝트 진행 과정과 문제 해결 경험 정리 가능\n면접 활용도 향상 : 학습 과정, 기술적 고민, 성장 경험을 기반으로 답변 정리 가능\n꾸준한 기록은 이후 복습, 프로젝트 진행, 포트폴리오 정리에도 큰 도움이 될 수 있습니다.\n자세한 작성 방법 및 예시는 아래 노션 가이드를 참고해주시기 바랍니다!\n📌 TIL 작성 가이드 : 노션 가이드\nhttps://www.notion.so/TIL-361c9a6158b780369eaec1c4a132a1ef\n📌 TIL 작성 템플릿 : 노션 템플릿\nhttps://www.notion.so/_OO-_-361c9a6158b7801b9a6fff4208ca754a\n※ 템플릿 복제 후 생성된 본인 TIL 페이지 링크는 각 반 담당 운영진이 확인할 수 있도록 공유 설정 후 전달 부탁드립니다.\n감사합니다!", "attachments": []}, {"notice_id": 11, "title": "자율 스터디 운영 현황 조사 안내", "release_date": "2026-05-18", "content": "안녕하세요!\n인공지능사관학교입니다:)\n현재 교육생분들 사이에서 다양한 분야의 스터디가 자율적으로 활발하게 운영되고 있어, 스터디 현황 파악 및 향후 운영 지원을 위한 설문 조사를 진행하고자 합니다.\n스터디를 운영 중이거나 참여하고 있는 교육생분들께서는 아래 설문에 참여 부탁드립니다❣️\n🔗 자율 스터디 현황 조사 설문 링크 : https://forms.gle/dDW6sZVgfmanY3YP9\n참고로 설문 응답자는 추후 진행 예정인 현직 멘토님과 함께하는 「스터디랩」 모집 및 선발 과정에서 가산점이 부여될 예정이니 여러분들의 많은 참여 부탁드립니다❣️\n감사합니다.", "attachments": []}, {"notice_id": 23, "title": "스터디랩 지원 안내", "release_date": "2026-05-15", "content": "안녕하세요!\n인공지능사관학교입니다:)\n정규 수업 외에 교육생분들이 자율적으로 스터디를 진행할 수 있는 스터디랩을 진행하고자 합니다!\n인공지능사관학교의 스터디랩은 현업에서 근무하고 있는 멘토님들이 팀별로 배정이 되어 교육생과 멘토가 함께하는 스터디입니다.\n해당 스터디는 팀 단위로만 신청이 가능하며 스터디 팀장님께서 대표로 지원서를 작성해 주시기 바랍니다.\n여러분들의 많은 참여 바랍니다❤️\n설문 링크 : https://forms.gle/tvrrFoszweSuaeJo8\n📌수요 조사 설문에 참여하시기 전에 아래 사항을 참고해주세요📌\n[스터디랩 신청 일자]\n- 제출기한 : 6월 17일(수) 15시까지\n[스터디랩 진행 내용]\n⏱️ 스터디랩 진행 기간 : 약 2개월\n🧑‍🤝‍🧑 스터디랩 진행 인원 : 1팀당 3~5명 내외\n[스터디랩 설문 내용]\n✅ 스터디랩 희망 주제 :\n스터디랩을 진행하게 될 경우 하고 싶은 주제를 작성해 주세요!\nEx) 000서비스를 구현하는 미니프로젝트 진행, OOO와 관련한 학술연구 등\n✅ 스터디랩 팀명 :\n스터디랩 구성원들과 함께하는 팀명을 작성해 주세요!\n✅ 스터디랩 팀원의 이름 :\n스터디랩에 참여하는 팀원들의 이름을 작성해 주세요!\n(타 반 학생과 융합하여 구성 가능합니다)", "attachments": []}, {"notice_id": 10, "title": "AWS · 네이버클라우드 자격증 학습방법 및 바우처 신청 안내", "release_date": "2026-05-14", "content": "안녕하세요.\n인공지능사관학교 운영팀입니다.\n최근 AI·데이터 분야 실무 환경은 대부분 클라우드 기반으로 운영되고 있으며\n클라우드 활용 역량은 이제 AI·IT 분야 취업과 실무 수행에 중요한 역량 중 하나가 되고 있습니다.\nAWS와 네이버클라우드 자격증은\n클라우드 서비스 이해 및 활용 역량을 보여줄 수 있는 대표적인 자격증으로\n실무 역량 강화와 취업 준비에도 도움이 됩니다.\n교육과정 기간 동안 AWS 및 네이버클라우드 자격증 학습과 바우처를 지원하오니\n첨부된 학습방법 이미지를 참고하여 충분한 반복 학습 후, 자격증에 도전해보시기 바랍니다. 💪\n[🪪AWS 자격증]\n- AWS Skill Builder를 통해 반복학습 및 모의시험 도전!\n- 충분한 학습 후, AWS 바우처 신청!\n💡 AWS Skill Builder 제공 기간 : ~ 7/30까지\n- 성장기간 동안 AWS Skill Builder를 활용하여 클라우드 역량과 커리어 경쟁력을 함께 강화해보시기 바랍니다.\n👉바우처 신청 : https://forms.gle/L8ScVoQQaxZuQQFM6\n[🪪네이버클라우드(NCA/NCP) 자격증]\n- 네이버클라우드 교육센터 비즈니스 스쿨\n(https://bizschool.naver.com/online/courses/76) 로그인\n- 차근차근 반복 학습 후, 네이버클라우드 바우처 신청!\n👉바우처 신청 : https://forms.gle/UH63mDasDTX2sYZy9\n📌유의사항\n- AWS · 네이버클라우드 바우처는 신청자 개별 지급 예정이며 타인 양도는 불가합니다.\n- 신청 현황 확인 후 순차 지급 예정입니다.\n- 지급된 바우처는 유효기간 내 반드시 사용해주시기바랍니다.\n문의사항은 담당 운영진에게 문의주시기 바랍니다.\n감사합니다.", "attachments": []}, {"notice_id": 9, "title": "무더운 날씨 당 충전이 필요한 여러분을 위한 아이스크림 이벤트", "release_date": "2026-05-14", "content": "안녕하세요!\n인공지능사관학교입니다.\n코드만 보고, AI만 공부하고,\n머리에서 연기 나기 직전이라면 주목해주세요 👀\n인공지능사관학교 1층 AI CAFE에서\n여러분의 지친 두뇌를 시원하게 달래줄\n🍨 아이스크림 이벤트 🍨를 진행합니다!\n📍 장소 : 인공지능사관학교 1층 AI CAFE\n📅 일정 : 아이스크림 소진 시까지\n✔ 1인당 아이스크림 1개 제공!\n✔ 선착순으로 진행되며, 준비된 수량 소진 시 종료됩니다!\n✔ 친구 몫 대신 받기 ❌\n✔ 질서 있는 참여는 필수 🙌\n시원한 아이스크림과 함께\n당도 충전, 기분 충전, 집중력 충전까지 해보세요♥️", "attachments": []}, {"notice_id": 8, "title": "도약과정 프로젝트 유형 사전 수요조사 설문", "release_date": "2026-05-13", "content": "안녕하세요!\n인공지능사관학교입니다.\n추후 도약과정에서 진행될 프로젝트 운영을 위해 교육생분들의 관심 분야와 참여 희망 프로젝트 유형을 사전에 파악하고자 수요조사를 진행하고자 합니다.\n해당 설문은 단순 수요조사일 뿐이며 도약과정 진행 전에 다시 한 번 조사를 할 예정이오니 참고 부탁드립니다.\n📌 설문 내용 : 도약과정 참여 희망 프로젝트 유형 수요조사\n📌 소요 시간 : 약 1분 내외\n📌 설문 링크 : https://forms.gle/QeagXF8DWoy1S8vc6\n감사합니다.", "attachments": []}, {"notice_id": 7, "title": "인공지능사관학교 AI CREW 2기 모집", "release_date": "2026-05-11", "content": "안녕하세요!\n인공지능사관학교입니다🤗\n인공지능사관학교의 다양한 소식과 활동을 널리 알릴 인공지능사관학교 서포터즈 AI Crew 2기를 모집합니다.\nSNS채널만 있으면 누구나 신청이 가능하니 여러분들의 많은 참여 바랍니다!\n🎯 모집일정\n- 모집 기간 : 26.05.11(월) ~ 26.05.19(화) 14:00까지\n- 모집 대상 : 개인 SNS 채널이 있으신 분 ＊서포터즈 유경험자 우대\n- 선발 분야:\n1) 블로그 (네이버/티스토리 등)\n2) 인스타그램 (피드 활동)\n3) 릴스&쇼츠 (유튜브, 인스타그램 등)\n- 지원서 링크: https://forms.gle/KLrcUEa6jDVVLERw5\n🎁 활동 혜택\n- 매월 활동지원금 10만원 지원\n- 공식 서포터즈 활동 인증서 발급\n- 우수 크루원 시상 및 소정 상품 제공\n자세한 내용은 지원서 링크를 통해 확인해주세요♥", "attachments": []}, {"notice_id": 6, "title": "흡연 부스 이용 안내", "release_date": "2026-05-11", "content": "안녕하세요!\n인공지능사관학교입니다.\n인공지능사관학교 인근에서의 흡연은 불가하며 흡연 시 보건소나 주변 기관으로부터 민원이 다수 접수됩니다.\n이에 따라 지정된 흡연 부스 외 장소에서의 흡연은 금해주시길 부탁드립니다.\n✅ 흡연 가능 장소:\n→ [ACC 문화창조원 근처 흡연부스], [KT건물 지하 1층]\n🚫 금연구역에서 흡연 시 과태료 10만 원이 부과될 수 있으니\n반드시 지정된 장소를 이용해주시기 바랍니다.\n감사합니다.", "attachments": []}, {"notice_id": 5, "title": "인공지능사관학교 수강생 대상 백신 및 보안프로그램 '알약' 지원 안내", "release_date": "2026-05-11", "content": "안녕하세요~! 인공지능사관학교 수강생 여러분.\n인공지능사관학교에서 지급받은 노트북에 백신 및 보안 프로그램 '알약'을 지원드리고자 안내드립니다.\n더욱 안전하고 쾌적한 학습 환경을 조성을 위함이오니 모두 설치하여 사용할 수 있도록 해주세요. :)\n1. 지원 대상\n인공지능사관학교 7기 수강 중인 모든 교육생\n2. 지원 프로그램\n보안 전문기업 이스트시큐리티 '알약' (백신 및 보안프로그램)\n3. 설치 방법 및 일정\n배포 일정: 2026년 5월 11일(월)부터\n사용 기한: 2026년 12월 11일(금)까지\n설치 방법: 설치 파일이 포함된 구글 드라이브 링크를 클라썸 메인 화면 좌측 '알약 설치 링크'을 통해 설치하시면 됩니다.\n설치 대상: 인공지능사관학교에서 지급받은 노트북\n라이센스 번호 : KK9Q-458U-52ZN-UC2Z\n4. 유의사항\n본 설치파일은 인공지능사관학교에서 지급받은 교육용 노트북에만 설치가 가능합니다.\n개인 사용 노트북/PC은 가급적이면 알약 공개용 제품(무료버전) 또는 유료버전으로 이용해주세요.\n추가로 궁금하신 점이 있으시면 언제든지 운영진에게 문의해 주세요.\n여러분의 안전한 학습 환경을 위해 항상 노력하겠습니다.\n무더운 여름에 건강 유의하시길 바라겠습니다.\n감사합니다.\n—\n인공지능사관학교 7기 운영진 드림", "attachments": []}, {"notice_id": 4, "title": "자율스터디 모집 가이드 안내", "release_date": "2026-05-11", "content": "안녕하세요!\n인공지능사관학교입니다.\n여러분들의 자유로운 학습 환경 조성 및 기초 역량 강화를 위한 자율스터디를 안내드립니다.\n특정 주제 및 분야에서 같이 공부할 사람을 찾고 싶다면 자율스터디 모집 게시판을 활용해서 스터디원을 모집해 보세요☺️\n🙋 자율스터디 참여 방법\n1) 2, 3층 복도 게시판에 있는 스터디원 모집 포스터를 찾는다\n2) 포스트잇에 아래 양식을 참고하여 스터디원 모집글을 작성한다.\n3) 내용을 작성한 포스트잇을 스터디원 모집 포스터에 부착한다.\n4) 개인 DM으로 스터디원이 문의를 주면 확인하다.\n5) 스터디가 구성이 되면 각 반 운영진에게 스터디 구성 내용을 전달한다.\n6) 자유롭게 스터디를 운영하고 운영진이 전달하는 자율스터디 보고서를 작성하고 제출한다.\n📚 자율스터디 모집 양식\n- 스터디명 :\n- 스터디 주제 :\n- 모집 인원 : 00명\n- 스터디장 Discord : @아이디\n📝 자율스터디 예시\n- AWS, ADsP, 정처기 자격증 스터디\n- AI/IT 관련 논문 읽기 스터디\n- 미니 프로젝트 스터디\n- 해커톤 및 공모전 스터디\n자율스터디와 관려된 문의사항은 각 반 운영진에게 문의 바랍니다:)\n감사합니다.", "attachments": []}, {"notice_id": 3, "title": "클라썸 & 디스코드 이용 안내", "release_date": "2026-05-11", "content": "안녕하세요!\n인공지능사관학교입니다🖐️\n교육 과정에서 활용되는 클라썸과 디스코드 이용과 관련하여 안내드립니다.\n클라썸은 강의 자료, 공지사항, 학습 콘텐츠 등 확인하고 복습 및 자기주도 학습을 진행하는 공간이며\n디스코드는 실시간 소통, 질문, 공지 확인, 출결 및 활동 관리 등 교육 과정 전반의 커뮤니케이션을 위한 공간입니다.\n두 플랫폼은 학습, 소통, 자료 공유 등 교육 운영 전반에 활용되므로 잘 확인하고 이용해 주시기 바랍니다!\n주요 활용 방법은 다음과 같습니다.\n공지 및 일정 확인 : 클라썸 공지 / 디스코드 공지사항 채널\n강의 자료 및 복습 : 클라썸 콘텐츠\n강의 중 질문 및 소통 : 디스코드 ‘라운지-강의중’\n자료 공유 및 정보 교류 : 디스코드 ‘교안-공유’, ‘정보공유’\n출결 및 서류 요청 : 디스코드 ‘출결정정 & 서류요청’\n자율 학습 및 챌린지 : 클라썸 챌린지 및 디스코드 스터디 채널\n각 공간의 목적에 맞게 활용해주시면 보다 효율적인 학습이 가능합니다.\n특히 공지사항과 강의 자료는 수시로 확인해주시기 바랍니다.\n자세한 이용 방법은 아래 안내 링크를 통해 확인하실 수 있어요!\n클라썸 안내 : https://www.notion.so/oreumi/343ebaa8982b803eae04c664c14fd972\n디스코드 안내 : https://www.notion.so/oreumi/343ebaa8982b80639259e31bd989f52b\n모두가 함께 사용하는 공간인 만큼 서로 배려하며 이용해 주시기 바랍니다.\n감사합니다.", "attachments": []}, {"notice_id": 2, "title": "7기 취득지원 자격증 및 응시료 지원 안내", "release_date": "2026-05-08", "content": "안녕하세요.\n인공지능사관학교 운영팀입니다.\n교육과정 기간 동안 AI·IT 분야 자격증 응시료 지원을 진행합니다.\n교육과정 기간 내 자격증 응시 후, ✨결제 영수증과 합격증을 제출한 교육생에게 자격증 응시료를 지원합니다.\n지원 대상 자격증 및 세부 일정은 해당 파일 또는 각반에 비치된 [26년 취득지원 자격증 리스트] 안내 자료 참고해주시기 바랍니다.\n📝 지원 내용\n* 자격증 응시료 최대 1인 1회 50,000원 지원\n* AWS 및 네이버 클라우드 자격증은 바우처 별도 제공 예정\n* 필기/ 실기로 구분된 자격증 모두 지원 가능\n* 자격증별 일정 및 지원 기준 상이하오니 자격증 공식 홈페이지 확인 필수\n✅ 제출 필수 서류\n* 자격증 응시 결제 영수증\n* 합격증 또는 합격을 증빙할 수 있는 공식 문서\n💡제출 링크\nhttps://forms.gle/Fop4cVM45CV2tBsD7\n👉 파일명 작성 기준\n* 파일명 : 00반_과정명_이름_자격증명\n* 예시 : 00반_AI헬스케어_홍길동_SQLD\n※ 파일명을 기준에 맞게 작성하지 않을 경우 본인 확인이 어려워 지원이 제한될 수 있습니다.\n📌 유의사항\n- 타 국가·지자체 지원사업 참여자는 해당 사업 담당자에게 지원 가능 여부 확인 후 서류 제출해주세요!\n- 안내된 자격증 외 AI·IT 관련 자격증 신청 시 사전에 운영진에게 지원 가능 여부 문의해주시기 바랍니다.\n- 자격증별 응시 방식, 시험 일정 및 세부 사항은 자격증별 공식 홈페이지 참고하시기 바랍니다.\n자격증 취득은 실무 역량 강화뿐 아니라 취업 준비에도 도움이 될 수 있으니 교육기간 동안 적극적으로 도전해보시기 바랍니다. 💪\n문의사항은 각 반 담당 운영진에게 문의해주시기 바랍니다.\n감사합니다.", "attachments": []}, {"notice_id": 1, "title": "출석인정(공가) 서류 제출 안내", "release_date": "2026-05-06", "content": "안녕하세요.\n인공지능사관학교입니다.\n[인공지능사관학교 7기 출석인정(공가) 처리기준]에 따라 공가 신청 시 반드시 증빙서류 제출해주시기 바랍니다.\n■ 신청 방법📄\n1. 클라썸에 출결 상태 사전 통보(공가, 지각, 외출, 조퇴 등 출결 특이사항 사전 통보)\n2. 공가일 후, 증빙 서류 준비\n3. 다음 공결 신청 설문에서 해당하는 사항 체크 및 증빙 서류 제출\n※ 제출 증빙 서류 확인은 [7기 출석인정(공가)처리 기준] 참고\n■ 신청 기한⏰\n- 신청 (사유발생일 D+7) : 증빙서류 제출 필수\n⚠️ 기한 내 증빙서류 미제출 시 공가 인정이 불가합니다.\n⚠️ [결석] 누적 시, 교육지원금 지급이 제한될 수 있으니 유의 바랍니다.\n■ 증빙 서류 파일명\n- 파일명 : 09반_공가요청일 8자리_이름_증빙서류명\n- 예시 : 09반_260603_홍길동_면접확인서 / 01반_260707_홍길동_진료확인서\n⚠️ 본인 확인이 어려울 경우, 출석 인정 되지않아 불이익이 있을 수 있습니다.\n🌟공가 증빙서류 제출 링크🌟\nhttps://forms.gle/WrLyUUPTAcHnmHKBA\n📌유의사항\n결석 일자에 대한 증빙서류 미제출시 공가 인정이 불가합니다.\n허위 제출 또는 부적절한 사유 확인시 공가 인정이 제한될 수 있습니다.\n자세한 공가 인정 기준은 각 반에 비치한 [출결 관리 기준] 운영 안내 자료 참고해주시기 바랍니다.\n감사합니다.", "attachments": []}]</script>
+
+<script>
+(function(){
+  const ALL_NOTICES = JSON.parse(document.getElementById('notices-data').textContent);
+
+  // "오늘" 기준: 데이터 내 최신 작성일 (데모/스냅샷 데이터 기준으로 NEW 배지 계산)
+  const LATEST_DATE = ALL_NOTICES.reduce((max, n) => n.release_date > max ? n.release_date : max, ALL_NOTICES[0].release_date);
+  const NEW_WINDOW_DAYS = 3;
+
+  function isNew(dateStr){
+    const d1 = new Date(dateStr);
+    const d0 = new Date(LATEST_DATE);
+    const diffDays = Math.round((d0 - d1) / (1000*60*60*24));
+    return diffDays >= 0 && diffDays <= NEW_WINDOW_DAYS;
+  }
+
+  function formatDate(dateStr){
+    const [y,m,d] = dateStr.split('-');
+    return `${y}.${m}.${d}`;
+  }
+
+  function escapeHtml(str){
+    return str.replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+
+  // 화면 표시 전용: "파일명.pdf.pdf" 같은 중복 확장자를 "파일명.pdf"로만 보여줌.
+  // 실제 링크(att.url)는 원본 파일명을 그대로 사용하므로 파일 열람에는 영향 없음.
+  function displayFileName(name){
+    const m = name.match(/^(.*)\.([A-Za-z0-9]+)\.([A-Za-z0-9]+)$/);
+    if (m && m[2].toLowerCase() === m[3].toLowerCase()){
+      return `${m[1]}.${m[3]}`;
+    }
+    return name;
+  }
+
+  const listEl = document.getElementById('listEl');
+  const countLabel = document.getElementById('countLabel');
+  const searchInput = document.getElementById('searchInput');
+  const loadTail = document.getElementById('loadTail');
+  const sentinel = document.getElementById('sentinel');
+
+  const PAGE_SIZE = 12;
+  let filtered = ALL_NOTICES.slice();
+  let renderedCount = 0;
+
+  function applySearch(query){
+    const q = query.trim().toLowerCase();
+    filtered = q
+      ? ALL_NOTICES.filter(n => n.title.toLowerCase().includes(q))
+      : ALL_NOTICES.slice();
+    renderedCount = 0;
+    listEl.innerHTML = '';
+    countLabel.textContent = `총 ${filtered.length}건`;
+    if (filtered.length === 0){
+      listEl.innerHTML = `<div class="empty-state"><div class="icon">🔍</div>'${escapeHtml(query)}'에 대한 공지를 찾지 못했어요.<br>다른 검색어로 시도해 보세요.</div>`;
+      loadTail.textContent = '';
+      return;
+    }
+    renderNextPage();
+  }
+
+  function attachmentChip(att){
+    return `
+      <a class="attachment-link" href="${att.url}" target="_blank" rel="noopener">
+        <span class="ext">${att.file_type}</span>
+        ${escapeHtml(displayFileName(att.file_name))}
+      </a>`;
+  }
+
+  function renderRow(n, no){
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.dataset.id = n.notice_id;
+
+    const newBadge = isNew(n.release_date) ? '<span class="new-badge">NEW</span>' : '';
+    const clipBadge = n.attachments.length ? '<span class="clip-badge">📎</span>' : '';
+
+    row.innerHTML = `
+      <div class="row-head">
+        <div class="no-badge">${no}</div>
+        <div class="row-main">
+          <div class="row-title-line">
+            <span class="row-title">${escapeHtml(n.title)}</span>
+            ${newBadge}${clipBadge}
+          </div>
+          <div class="row-date">${formatDate(n.release_date)}</div>
+        </div>
+        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="row-body">
+        <div class="row-body-inner">
+          <p class="notice-content">${escapeHtml(n.content || '내용이 없습니다.')}</p>
+          ${n.attachments.length ? `<div class="attachments">${n.attachments.map(attachmentChip).join('')}</div>` : ''}
+        </div>
+      </div>
+    `;
+
+    row.querySelector('.row-head').addEventListener('click', () => {
+      row.classList.toggle('open');
+    });
+
+    return row;
+  }
+
+  function renderNextPage(){
+    const next = filtered.slice(renderedCount, renderedCount + PAGE_SIZE);
+    next.forEach((n, i) => listEl.appendChild(renderRow(n, n.notice_id)));
+    renderedCount += next.length;
+
+    if (renderedCount >= filtered.length){
+      loadTail.textContent = filtered.length ? '— 모든 공지를 불러왔습니다 —' : '';
+    } else {
+      loadTail.textContent = '스크롤하면 더 불러옵니다 ⌄';
+    }
+  }
+
+  // Infinite scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && renderedCount < filtered.length){
+        renderNextPage();
+      }
+    });
+  }, { rootMargin: '200px' });
+  observer.observe(sentinel);
+
+  // Search (light debounce)
+  let debounceTimer = null;
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(debounceTimer);
+    const val = e.target.value;
+    debounceTimer = setTimeout(() => applySearch(val), 150);
+  });
+
+  // Initial render
+  countLabel.textContent = `총 ${ALL_NOTICES.length}건`;
+  renderNextPage();
+})();
+</script>
+</body>
+</html>
