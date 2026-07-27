@@ -13,6 +13,20 @@
  * @property {number} official_leave - 공가 일수
  */
 
+const MONTH_TOTAL_DAYS = {
+    5: 17, 6: 21, 7: 22, 8: 20,
+    9: 20, 10: 20, 11: 21, 12: 9
+};
+
+function getGuideValues(month) {
+    const totalDays = MONTH_TOTAL_DAYS[month] || 20;
+    return {
+        target_50_days: Math.ceil(totalDays * 0.5),
+        target_80_days: Math.ceil(totalDays * 0.8),
+        max_official_leave: Math.floor(totalDays * 0.2)
+    };
+}
+
 class AttendanceCalculatorUI {
     /**
      * 출결 계산기 모달 객체를 초기화합니다.
@@ -86,6 +100,27 @@ class AttendanceCalculatorUI {
         headerRow.appendChild(title);
         headerRow.appendChild(closeBtn);
         modalContent.appendChild(headerRow);
+
+        // 4. 가이드 3항목 (50% / 80% / 공가 한도) - 이번 달 기준 고정
+        const currentMonth = new Date().getMonth() + 1;
+        const guide = getGuideValues(currentMonth);
+        const guideBox = document.createElement('div');
+        guideBox.style.cssText = 'display:flex; justify-content:space-around; text-align:center; padding:8px 0 12px; border-bottom:1px solid #e9ecef; margin-bottom:12px;';
+        guideBox.innerHTML = `
+            <div>
+                <div style="font-size:11px; color:#868e96;">50% 기준</div>
+                <div style="font-size:13px; font-weight:700;">${guide.target_50_days}일</div>
+            </div>
+            <div>
+                <div style="font-size:11px; color:#868e96;">80% 기준</div>
+                <div style="font-size:13px; font-weight:700;">${guide.target_80_days}일</div>
+            </div>
+            <div>
+                <div style="font-size:11px; color:#868e96;">공가 한도</div>
+                <div style="font-size:13px; font-weight:700;">${guide.max_official_leave}일</div>
+            </div>
+        `;
+        modalContent.appendChild(guideBox);
 
         // 5. 항목별 입력 폼 렌더링 (map을 활용한 벡터화 유사 구조)
         const fields = [
