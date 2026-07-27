@@ -1,0 +1,100 @@
+2026-07-24 15:53:29,838 [INFO] === Retriever 검색 테스트 시작 ===
+2026-07-24 15:53:32,470 [INFO] [Retriever] 초기화 완료 | namespace=전체 | k=5 | threshold=0.5
+2026-07-24 15:53:33,741 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 15:53:35,121 [WARNING] No relevant docs were retrieved using the relevance score threshold 0.5
+2026-07-24 15:53:35,121 [WARNING] [검색] 결과 없음 | query=공가 신청할 때 필요한 서류가 뭐야?
+2026-07-24 15:53:35,662 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 15:53:35,935 [WARNING] No relevant docs were retrieved using the relevance score threshold 0.5
+2026-07-24 15:53:35,935 [WARNING] [검색] 결과 없음 | query=7월 자격증 취득 이벤트 내용 알려줘
+2026-07-24 15:53:36,240 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 15:53:36,505 [WARNING] No relevant docs were retrieved using the relevance score threshold 0.5
+2026-07-24 15:53:36,506 [WARNING] [검색] 결과 없음 | query=강의장 이용 수칙이 뭐야?
+2026-07-24 15:53:36,909 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 15:53:37,169 [WARNING] No relevant docs were retrieved using the relevance score threshold 0.5
+2026-07-24 15:53:37,169 [WARNING] [검색] 결과 없음 | query=AI 도약과정 핸드북 내용 알려줘
+2026-07-24 15:53:37,496 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 15:53:37,757 [WARNING] No relevant docs were retrieved using the relevance score threshold 0.5
+2026-07-24 15:53:37,758 [WARNING] [검색] 결과 없음 | query=이번 달 우수 교육생 선발 기준이 뭐야?
+2026-07-24 15:53:37,758 [INFO] === Retriever 검색 테스트 완료 ===
+2026-07-24 15:54:29,925 [INFO] === Retriever 검색 테스트 시작 ===
+2026-07-24 15:54:32,507 [INFO] [Retriever] 초기화 완료 | namespace=전체 | k=5 | threshold=0.3
+2026-07-24 15:54:33,081 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 15:54:34,399 [WARNING] No relevant docs were retrieved using the relevance score threshold 0.3
+2026-07-24 15:54:34,399 [WARNING] [검색] 결과 없음 | query=공가 신청할 때 필요한 서류가 뭐야?
+2026-07-24 15:54:34,662 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 15:54:34,914 [WARNING] No relevant docs were retrieved using the relevance score threshold 0.3
+2026-07-24 15:54:34,914 [WARNING] [검색] 결과 없음 | query=7월 자격증 취득 이벤트 내용 알려줘
+2026-07-24 15:54:35,157 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 15:54:35,428 [WARNING] No relevant docs were retrieved using the relevance score threshold 0.3
+2026-07-24 15:54:35,429 [WARNING] [검색] 결과 없음 | query=강의장 이용 수칙이 뭐야?
+2026-07-24 15:54:35,672 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 15:54:35,938 [WARNING] No relevant docs were retrieved using the relevance score threshold 0.3
+2026-07-24 15:54:35,939 [WARNING] [검색] 결과 없음 | query=AI 도약과정 핸드북 내용 알려줘
+2026-07-24 15:54:36,343 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 15:54:36,607 [WARNING] No relevant docs were retrieved using the relevance score threshold 0.3
+2026-07-24 15:54:36,608 [WARNING] [검색] 결과 없음 | query=이번 달 우수 교육생 선발 기준이 뭐야?
+2026-07-24 15:54:36,608 [INFO] === Retriever 검색 테스트 완료 ===
+2026-07-24 15:55:11,791 [INFO] === Retriever 검색 테스트 시작 ===
+2026-07-24 15:55:14,114 [INFO] [Retriever] 초기화 완료 | namespace=전체 | k=5 | threshold=0.1
+2026-07-24 15:55:14,659 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 15:55:15,959 [WARNING] No relevant docs were retrieved using the relevance score threshold 0.1
+2026-07-24 15:55:15,959 [WARNING] [검색] 결과 없음 | query=공가 신청할 때 필요한 서류가 뭐야?
+2026-07-24 15:55:16,261 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 15:55:16,515 [WARNING] No relevant docs were retrieved using the relevance score threshold 0.1
+2026-07-24 15:55:16,516 [WARNING] [검색] 결과 없음 | query=7월 자격증 취득 이벤트 내용 알려줘
+2026-07-24 15:55:16,914 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 15:55:17,127 [WARNING] No relevant docs were retrieved using the relevance score threshold 0.1
+2026-07-24 15:55:17,128 [WARNING] [검색] 결과 없음 | query=강의장 이용 수칙이 뭐야?
+2026-07-24 15:55:17,656 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 15:55:17,872 [WARNING] No relevant docs were retrieved using the relevance score threshold 0.1
+2026-07-24 15:55:17,872 [WARNING] [검색] 결과 없음 | query=AI 도약과정 핸드북 내용 알려줘
+2026-07-24 15:55:18,001 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 15:55:18,248 [WARNING] No relevant docs were retrieved using the relevance score threshold 0.1
+2026-07-24 15:55:18,249 [WARNING] [검색] 결과 없음 | query=이번 달 우수 교육생 선발 기준이 뭐야?
+2026-07-24 15:55:18,249 [INFO] === Retriever 검색 테스트 완료 ===
+2026-07-24 16:30:49,169 [INFO] === Retriever 검색 테스트 시작 ===
+2026-07-24 16:30:52,573 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 16:30:54,072 [INFO] [검색] query=공가 신청할 때 필요한 서류가 뭐야? | 전체=0 | 필터후=0 | threshold=0.4
+2026-07-24 16:30:54,977 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 16:30:56,349 [INFO] [검색] query=7월 자격증 취득 이벤트 내용 알려줘 | 전체=0 | 필터후=0 | threshold=0.4
+2026-07-24 16:30:57,152 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 16:30:58,530 [INFO] [검색] query=강의장 이용 수칙이 뭐야? | 전체=0 | 필터후=0 | threshold=0.4
+2026-07-24 16:30:59,149 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 16:31:00,529 [INFO] [검색] query=AI 도약과정 핸드북 내용 알려줘 | 전체=0 | 필터후=0 | threshold=0.4
+2026-07-24 16:31:01,420 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 16:31:02,708 [INFO] [검색] query=이번 달 우수 교육생 선발 기준이 뭐야? | 전체=0 | 필터후=0 | threshold=0.4
+2026-07-24 16:31:02,713 [INFO] === Retriever 검색 테스트 완료 ===
+2026-07-24 16:39:01,253 [INFO] === Retriever 검색 테스트 시작 ===
+2026-07-24 16:39:05,588 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 16:39:07,472 [INFO] [검색] query=공가 신청할 때 필요한 서류가 뭐야? | 전체=15 | 필터후=5 | threshold=0.4
+2026-07-24 16:39:08,284 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 16:39:10,026 [INFO] [검색] query=7월 자격증 취득 이벤트 내용 알려줘 | 전체=15 | 필터후=5 | threshold=0.4
+2026-07-24 16:39:11,084 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 16:39:12,788 [INFO] [검색] query=강의장 이용 수칙이 뭐야? | 전체=15 | 필터후=2 | threshold=0.4
+2026-07-24 16:39:13,710 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 16:39:15,358 [INFO] [검색] query=AI 도약과정 핸드북 내용 알려줘 | 전체=15 | 필터후=5 | threshold=0.4
+2026-07-24 16:39:16,152 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-24 16:39:17,858 [INFO] [검색] query=이번 달 우수 교육생 선발 기준이 뭐야? | 전체=15 | 필터후=5 | threshold=0.4
+2026-07-24 16:39:17,861 [INFO] === Retriever 검색 테스트 완료 ===
+2026-07-27 09:59:24,018 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-27 09:59:26,345 [INFO] [검색] query=공가 신청할 때 필요한 서류가 뭐야? | 전체=15 | 필터후=5 | threshold=0.4
+2026-07-27 09:59:28,984 [INFO] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-27 09:59:29,009 [INFO] [답변 생성 완료] query=공가 신청할 때 필요한 서류가 뭐야? | 근거 5건
+2026-07-27 09:59:30,283 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-27 09:59:32,059 [INFO] [검색] query=7월 자격증 취득 이벤트 내용 알려줘 | 전체=15 | 필터후=5 | threshold=0.4
+2026-07-27 09:59:35,359 [INFO] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-27 09:59:35,363 [INFO] [답변 생성 완료] query=7월 자격증 취득 이벤트 내용 알려줘 | 근거 5건
+2026-07-27 09:59:36,189 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-27 09:59:37,988 [INFO] [검색] query=존재하지 않는 이상한 질문입니다 아무말대잔치 | 전체=15 | 필터후=0 | threshold=0.4
+2026-07-27 09:59:37,989 [INFO] [검색 결과 없음] query=존재하지 않는 이상한 질문입니다 아무말대잔치
+2026-07-27 10:16:34,551 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-27 10:16:36,629 [INFO] [검색] query=공가 신청할 때 필요한 서류가 뭐야? | 전체=15 | 필터후=5 | threshold=0.4
+2026-07-27 10:16:39,251 [INFO] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-27 10:16:39,270 [INFO] [답변 생성 완료] query=공가 신청할 때 필요한 서류가 뭐야? | 근거 5건
+2026-07-27 10:16:40,399 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-27 10:16:42,249 [INFO] [검색] query=7월 자격증 취득 이벤트 내용 알려줘 | 전체=15 | 필터후=5 | threshold=0.4
+2026-07-27 10:16:45,722 [INFO] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-27 10:16:45,728 [INFO] [답변 생성 완료] query=7월 자격증 취득 이벤트 내용 알려줘 | 근거 5건
+2026-07-27 10:16:46,542 [INFO] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-07-27 10:16:48,343 [INFO] [검색] query=존재하지 않는 이상한 질문입니다 아무말대잔치 | 전체=15 | 필터후=0 | threshold=0.4
+2026-07-27 10:16:48,345 [INFO] [검색 결과 없음] query=존재하지 않는 이상한 질문입니다 아무말대잔치
