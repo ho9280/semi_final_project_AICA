@@ -65,22 +65,27 @@ class AttendanceCalculatorUI {
             position: relative;
         `;
 
-        // 3. 닫기 버튼 생성 및 이벤트 바인딩 (언마운트 유도)
-        const closeBtn = document.createElement('button');
-        closeBtn.innerText = 'X 닫기';
-        closeBtn.style.cssText = `
-            position: absolute; top: 16px; right: 16px; cursor: pointer;
-            border: none; background: #f1f3f5; padding: 6px 10px;
-            border-radius: 6px; font-weight: 600; color: #495057;
-        `;
-        closeBtn.onclick = () => this.unmount();
-        modalContent.appendChild(closeBtn);
+        // 3. 상단 헤더 행: 타이틀 + 닫기 버튼 (같은 줄, 별도 클릭 여백 확보)
+        const headerRow = document.createElement('div');
+        headerRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
-        // 4. 타이틀 텍스트
         const title = document.createElement('h3');
         title.innerText = '🧮 7기 출결 계산기';
-        title.style.cssText = 'margin: 0 0 20px 0; color: #212529; font-size: 1.2rem;';
-        modalContent.appendChild(title);
+        title.style.cssText = 'margin: 0; color: #212529; font-size: 1.1rem;';
+
+        const closeBtn = document.createElement('button');
+        closeBtn.innerText = '✕';
+        closeBtn.setAttribute('aria-label', '닫기');
+        closeBtn.style.cssText = `
+            cursor: pointer; border: none; background: #f1f3f5;
+            width: 28px; height: 28px; border-radius: 6px;
+            font-weight: 600; color: #495057; flex-shrink: 0;
+        `;
+        closeBtn.onclick = () => this.unmount();
+
+        headerRow.appendChild(title);
+        headerRow.appendChild(closeBtn);
+        modalContent.appendChild(headerRow);
 
         // 5. 항목별 입력 폼 렌더링 (map을 활용한 벡터화 유사 구조)
         const fields = [
@@ -200,10 +205,12 @@ class AttendanceCalculatorUI {
 
             // 결과 바인딩
             resultBox.innerHTML = `
-                <div style="font-weight:700; border-bottom:1px solid #dee2e6; padding-bottom:8px; margin-bottom:8px;">최종 계산 결과</div>
-                <div style="margin-bottom:4px;">현재 출석률: <strong style="color: #2b8a3e; font-size: 1.1rem;">${data.attendance_rate}%</strong></div>
-                <div style="margin-bottom:4px;">인정 출석일수: <strong>${data.recognized_days}일</strong></div>
-                <div>잔여 공가: <strong>${data.remaining_leave}일</strong></div>
+                <div style="text-align:center; font-size:11px; color:#868e96; margin-bottom:4px;">현재 출석일수 / 단위 출석일수</div>
+                <div style="text-align:center; font-size:19px; font-weight:700;">
+                    ${data.recognized_days}일
+                    <span style="color:#1c7ed6;"> (${data.attendance_rate}%)</span>
+                </div>
+                <div style="text-align:center; font-size:12px; color:#868e96; margin-top:6px;">잔여 공가 ${data.remaining_leave}일</div>
             `;
         } catch (error) {
             console.error('[AttendanceUI] API Request Exception:', error);
