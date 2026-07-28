@@ -47,14 +47,10 @@ ALL_NAMESPACES = [
     config.PINECONE_NAMESPACE_REFERENCE,
 ]
 
-def search(query: str, namespaces: list = None) -> list:
-    """
-    Pinecone 직접 검색 함수
-    - namespaces: 검색할 Namespace 리스트 (None이면 전체 3개 검색)
-    - 각 namespace에서 top_k개씩 가져온 후, score 기준 정렬 + threshold 필터링
-    """
+def search(query: str, namespaces: list = None, index_name: str | None = None) -> list:
     if namespaces is None:
         namespaces = ALL_NAMESPACES
+    index_name = index_name or config.PINECONE_INDEX_NAME  # 실험 시 다른 Index 지정 가능
 
     embeddings = OpenAIEmbeddings(
         model=config.EMBEDDING_MODEL,
@@ -62,7 +58,7 @@ def search(query: str, namespaces: list = None) -> list:
     )
 
     pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-    index = pc.Index(config.PINECONE_INDEX_NAME)
+    index = pc.Index(index_name)
 
     # 질문 임베딩 (여러 namespace에 재사용)
     query_vector = embeddings.embed_query(query)

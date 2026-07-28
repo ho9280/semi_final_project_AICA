@@ -1966,12 +1966,14 @@ def get_today_kst() -> date:
 
 
 @dataclass
+@dataclass
 class QueryFilters:
     organization_code: str | None = None
     organization_display: str | None = None
     menu_date: str | None = None
     weekday: str | None = None
     meal_type: str | None = None
+    week_offset: int | None = None  # "다음주"처럼 주만 지정되고 요일이 없는 경우에만 값이 채워짐
 
 
 def _extract_organization(text: str) -> tuple[str | None, str | None]:
@@ -1985,6 +1987,26 @@ def _extract_organization(text: str) -> tuple[str | None, str | None]:
     return None, None
 
 
+_WEEK_MODIFIER_PATTERN = re.compile(r"(지난|저번|이번|다음|담)\s*주")
+_SHORT_DATE_PATTERN = re.compile(r"(\d{1,2})[./월]\s*(\d{1,2})일?")
+_WEEKDAY_INDEX = {day: i for i, day in enumerate(WEEKDAYS)}  # 월=0 ~ 일=6
+
+
+def _extract_week_offset(text: str) -> int | None:
+    """'지난주'/'저번주' -> -1, '이번주' -> 0, '다음주'/'담주' -> 1.
+    표현이 없으면 None."""
+    match = _WEEK_MODIFIER_PATTERN.search(text)
+    if not match:
+        return None
+    word = match.group(1)
+    if word in ("지난", "저번"):
+        return -1
+    if word == "이번":
+        return 0
+    return 1  # "다음"/"담"
+
+
+
 def _extract_date(text: str, today: date) -> str | None:
     if "오늘" in text:
         return today.isoformat()
@@ -1992,6 +2014,18 @@ def _extract_date(text: str, today: date) -> str | None:
         return (today + timedelta(days=1)).isoformat()
     if "모레" in text:
         return (today + timedelta(days=2)).isoformat()
+
+    # "다음주 금요일", "지난주 화요일"처럼 [주 지정 + 요일]이 함께 있으면
+    # 정확한 날짜 하나로 확정한다. 이렇게 하면 "다음주"처럼 실제 데이터가
+    # 없는 주를 물었을 때, 검색 결과가 자연스럽게 0건이 되어 기존의
+    # "해당 날짜에는 등록된 식단이 없습니다" 안내가 그대로 작동한다.
+    week_offset = _extract_week_offset(text)
+    weekday_match = _WEEKDAY_PATTERN.search(text)
+    if week_offset is not None and weekday_match and weekday_match.group(0) in WEEKDAYS:
+        target_idx = _WEEKDAY_INDEX[weekday_match.group(0)]
+        monday_this_week = today - timedelta(days=today.weekday())
+        target_monday = monday_this_week + timedelta(weeks=week_offset)
+        return (target_monday + timedelta(days=target_idx)).isoformat()
 
     match = _DATE_PATTERN.search(text)
     if match:
@@ -2001,8 +2035,16 @@ def _extract_date(text: str, today: date) -> str | None:
         except ValueError:
             return None
 
-    return None
+    # 연도 없이 "7/31", "7월 31일"처럼 쓴 경우 -> 현재 연도로 간주.
+    short_match = _SHORT_DATE_PATTERN.search(text)
+    if short_match:
+        month, day = (int(g) for g in short_match.groups())
+        try:
+            return date(today.year, month, day).isoformat()
+        except ValueError:
+            return None
 
+    return None
 
 def _extract_weekday(text: str) -> str | None:
     match = _WEEKDAY_PATTERN.search(text)
@@ -2061,19 +2103,20 @@ def _extract_search_keyword(query: str, filters: QueryFilters) -> str:
 
 
 def parse_query(query: str, today: date | None = None) -> QueryFilters:
-    """사용자 질문에서 업체/날짜/요일/식사종류를 추출한다.
-
-    MVP에서는 복잡한 LLM 호출 대신 키워드 매칭과 간단한 날짜 계산만 사용한다.
-    """
     today = today or get_today_kst()
     org_code, org_display = _extract_organization(query)
+    weekday = _extract_weekday(query)
+    week_offset = _extract_week_offset(query)
 
     return QueryFilters(
         organization_code=org_code,
         organization_display=org_display,
         menu_date=_extract_date(query, today),
-        weekday=_extract_weekday(query),
+        weekday=weekday,
         meal_type=_extract_meal_type(query),
+        # "다음주"는 있는데 요일이 없어 특정 날짜를 못 정한 경우만 기록
+        # (요일까지 있으면 위 _extract_date에서 이미 정확한 날짜로 확정됨)
+        week_offset=week_offset if (week_offset is not None and weekday is None) else None,
     )
 
 
@@ -2134,6 +2177,19 @@ def plan_menu_search(query: str, filters: QueryFilters, today: date) -> dict:
             "keyword": str | None,  # "hybrid"일 때만 의미 있음
         }
     """
+    if filters.week_offset is not None:
+        # "다음주 밥 뭐야?"처럼 주는 지정됐지만 요일이 없어 날짜를 하나로
+        # 특정할 수 없는 경우. 검색을 시도하지 않고, 정확한 날짜/요일을
+        # 되물어보는 응답으로 확정한다.
+        return {
+            "search_mode": "ambiguous_date",
+            "organization_codes": _resolve_organization_codes(filters),
+            "menu_date": None,
+            "weekday": None,
+            "meal_type": _resolve_meal_type(filters),
+            "keyword": None,
+        }
+
     if filters.menu_date or filters.weekday:
         # 업체/날짜(또는 요일)가 명확하므로 조건 검색을 그대로 쓴다(기존 동작 유지).
         meal_type = _resolve_meal_type(filters)
@@ -2294,11 +2350,10 @@ def _build_answer(
     filters: QueryFilters, results: list[dict], today: date, search_mode: str
 ) -> str:
     if not results:
+        if search_mode == "ambiguous_date":
+            return "어느 날짜 또는 요일의 식단이 궁금하신가요? 예: '다음주 금요일', '8월 3일'처럼 구체적으로 말씀해 주세요."
         if search_mode == "condition":
-            # 날짜(또는 요일) 조건으로 조회했는데 결과가 없는 경우.
-            # 다른 날짜의 메뉴로 대체하지 않고, 정해진 안내 문구만 반환한다.
             return "해당 날짜에는 등록된 식단이 없습니다."
-        # 하이브리드(메뉴명/재료) 검색에서 관련성 기준을 충족하는 메뉴를 못 찾은 경우.
         return "관련 메뉴를 찾지 못했습니다."
 
     if len(results) == 1:
@@ -2351,29 +2406,14 @@ def query_menu(
         search_mode = plan["search_mode"]
 
         if search_mode == "hybrid":
-            raw_results, _match_tier, _scores = hybrid_search_menu(
-                plan["keyword"],
-                plan["organization_codes"],
-                plan["weekday"],
-                plan["meal_type"],
-                store,
-                vector_store,
-            )
+            raw_results, _match_tier, _scores = hybrid_search_menu(...)
+        elif search_mode == "ambiguous_date":
+            raw_results = []  # 날짜를 특정할 수 없음 -> 검색 자체를 시도하지 않음
         else:
-            # 해당 조건에 데이터가 없어도 다른 날짜/끼니/업체로 대체하지 않는다.
-            org_display_list = [
-                ORGANIZATIONS[code]["display_name"] for code in plan["organization_codes"]
-            ]
+            org_display_list = [...]
             raw_results = []
             for org_display in org_display_list:
-                raw_results.extend(
-                    store.get_by_condition(
-                        organization=org_display,
-                        menu_date=plan["menu_date"],
-                        weekday=plan["weekday"],
-                        meal_type=plan["meal_type"],
-                    )
-                )
+                raw_results.extend(store.get_by_condition(...))
 
         results = [_strip_internal_fields(r) for r in raw_results]
         answer = _build_answer(filters, results, today, search_mode)
