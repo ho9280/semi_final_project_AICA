@@ -140,29 +140,20 @@ st.markdown(
         box-shadow: 0 0 0 2px rgba(50, 145, 217, 0.18);
     }
 
-    .notice-box {
-        margin-top: 22px;
-        background-color: #EEF6FD;
-        border-radius: 14px;
-        padding: 14px 16px;
-        color: #4E5968;
-        font-size: 13px;
-        line-height: 1.6;
-    }
     /* 주요 기능 버튼 전체 텍스트: 설명은 회색 */
-div[data-testid="stButton"] > button p {
-    color: #7A808A;
-    font-size: 13px;
-    font-weight: 400;
-    line-height: 1.7;
-}
+    div[data-testid="stButton"] > button p {
+        color: #7A808A;
+        font-size: 13px;
+        font-weight: 400;
+        line-height: 1.7;
+    }
 
-/* 주요 기능 버튼 제목: 굵고 조금 크게 */
-div[data-testid="stButton"] > button p strong {
-    color: #202124;
-    font-size: 16px;
-    font-weight: 700;
-}
+    /* 주요 기능 버튼 제목: 굵고 조금 크게 */
+    div[data-testid="stButton"] > button p strong {
+        color: #202124;
+        font-size: 16px;
+        font-weight: 700;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -218,7 +209,11 @@ if menu_result.get("success") and menu_list:
     menu_items = current_menu.get("menu_items", [])
 
     # 메뉴 리스트를 가운데점으로 연결
-    menu_text = " · ".join(menu_items) if menu_items else "등록된 메뉴가 없습니다."
+    menu_text = (
+        " · ".join(menu_items)
+        if menu_items
+        else "등록된 메뉴가 없습니다."
+    )
 
     st.markdown(
         f"""
@@ -327,15 +322,3 @@ with col4:
         use_container_width=True,
     ):
         st.switch_page("pages/complaints_page.py")
-        
-# -----------------------------
-# 안내 영역
-# -----------------------------
-st.markdown(
-    """
-    <div class="notice-box">
-        각 기능은 현재 화면 이동 및 Agent 연결 준비 단계입니다.
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
