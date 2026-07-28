@@ -1,3 +1,24 @@
-secrets.yml
-
+# 환경변수 (API Key 포함 — 절대 커밋 금지)
 .env
+
+# Python 캐시
+__pycache__/
+*.pyc
+
+# 가상환경
+.venv/
+
+# 로그 파일 (실행할 때마다 자동 생성됨, 코드가 아님)
+extract_log.txt
+chunk_log.txt
+upload_log.txt
+retriever_log.txt
+notice_agent_log.txt
+
+# DB / 런타임 생성 파일 (재실행하면 새로 만들어짐)
+data/chatbot_memory.db
+data/chatbot_memory.db-shm
+data/chatbot_memory.db-wal
+
+# 벡터 저장소 캐시
+data/menu/vector_store.json

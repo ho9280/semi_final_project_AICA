@@ -9,6 +9,9 @@ import math
 import sqlite3
 import os
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()   # 다른 모듈을 import하기 전에 반드시 먼저 실행
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -23,6 +26,7 @@ from pydantic import BaseModel, Field
 # =====================
 from attendance_agent import workflow, AgentState
 from app.menu_agent_tool import handle_chat_message as menu_handle_chat
+from notice_agent_tool import notice_agent_tool
 
 # =====================
 # 1. FastAPI 앱 생성 + CORS
@@ -62,19 +66,29 @@ MONTH_TOTAL_DAYS = {
 # =====================
 # 5. 키워드 분기 설정 (우선순위: 출결 > 공지 > 식단 > 기타)
 # =====================
-KEYWORDS = {
-    "출결": ["출결", "지각", "조퇴", "외출", "공가", "결석", "수료", "출석", "지원금"],
-    "공지": ["공지", "안내", "공고"],
-    "식단": ["식단", "메뉴", "점심", "저녁", "중식", "석식", "밥"],
-}
-
 def classify_intent(user_input: str) -> str:
-    """키워드 매칭으로 의도 분류 (우선순위: 출결 > 공지 > 식단 > 기타)"""
-    for category, keywords in KEYWORDS.items():
-        for keyword in keywords:
-            if keyword in user_input:
-                return category
-    return "기타"
+    """LLM 기반 의도 분류. 사용자가 버튼을 눌렀어도 실제 질문 내용을 우선 분석한다."""
+    system_prompt = (
+        "당신은 인공지능사관학교 챗봇의 의도 분류기입니다.\n"
+        "사용자 질문을 아래 4가지 카테고리 중 하나로 정확히 분류하고, 오직 카테고리명 한 단어만 반환하세요.\n"
+        "1. 출결: 출석, 지각, 조퇴, 외출, 공가, 결석, 수료, 지원금 관련 질문\n"
+        "2. 공지: 공지사항, 안내, 공고, 이벤트, 행사 관련 질문\n"
+        "3. 식단: 식단, 메뉴, 점심, 저녁, 중식, 석식 관련 질문\n"
+        "4. 기타: 위 3가지에 해당하지 않는 질문 (앱 사용법, 인사, 잡담 등)\n\n"
+        "[Examples]\n"
+        "User: 공가 신청 서류가 뭐야?\nCategory: 출결\n"
+        "User: 7월 자격증 이벤트 알려줘\nCategory: 공지\n"
+        "User: 오늘 점심 뭐야?\nCategory: 식단\n"
+        "User: 안녕\nCategory: 기타\n"
+        "User: 그 외 문의\nCategory: 기타"
+    )
+    response = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=user_input)])
+    intent = response.content.strip()
+
+    # 예상 밖 응답 방지 (기타로 폴백)
+    if intent not in ["출결", "공지", "식단", "기타"]:
+        intent = "기타"
+    return intent
 
 
 # =====================
@@ -82,10 +96,10 @@ def classify_intent(user_input: str) -> str:
 # 완성 시 아래 함수 내부만 교체
 # =====================
 
-# [공지 Agent] 완성 시 이 함수 내부만 교체
+# [공지 Agent] 연결 완료
 def notice_agent_response(user_input: str) -> str:
-    # TODO: 공지 agent 완성 시 교체
-    return "공지사항 관련 질문으로 안내드릴게요.\n현재 준비 중입니다."
+    result = notice_agent_tool.invoke({"query": user_input})
+    return result["text"]
 
 
 # [식단 Agent] 완성 시 이 함수 내부만 교체
@@ -159,9 +173,15 @@ async def chat_endpoint(request: ChatRequest):
             )
 
         elif intent == "공지":
+            if request.user_input.strip() in ["공지"]:
+                return ChatResponse(
+                    text="공지사항 관련 질문으로 안내드릴게요.\n궁금하신 공지 제목이나 키워드를 입력해 주세요.\n예) 공가 신청 서류 알려줘 / 7월 이벤트 뭐 있어?",
+                    action=None,
+                    show_buttons=True
+                )
             text = notice_agent_response(request.user_input)
             return ChatResponse(text=text, action=None, show_buttons=True)
-
+        
         elif intent == "식단":
             if request.user_input.strip() == "식단":
                 return ChatResponse(text="식단 관련 질문으로 안내드릴게요.\n날짜나 요일, 식당명을 포함해서 질문해 주세요.\n예) 오늘 점심 뭐야? / KT 내일 메뉴 알려줘", action=None, show_buttons=True)
