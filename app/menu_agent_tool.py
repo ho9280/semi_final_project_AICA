@@ -2406,14 +2406,26 @@ def query_menu(
         search_mode = plan["search_mode"]
 
         if search_mode == "hybrid":
-            raw_results, _match_tier, _scores = hybrid_search_menu(...)
+            raw_results, _match_tier, _scores = hybrid_search_menu(
+                keyword=plan["keyword"],
+                organization_codes=plan["organization_codes"],
+                weekday=plan["weekday"],
+                meal_type=plan["meal_type"],
+                store=store,
+                vector_store=vector_store,
+            )
         elif search_mode == "ambiguous_date":
             raw_results = []  # 날짜를 특정할 수 없음 -> 검색 자체를 시도하지 않음
         else:
-            org_display_list = [...]
+            org_display_list = _organization_names(plan["organization_codes"]) or [None]
             raw_results = []
             for org_display in org_display_list:
-                raw_results.extend(store.get_by_condition(...))
+                raw_results.extend(store.get_by_condition(
+                    organization=org_display,
+                    menu_date=plan["menu_date"],
+                    weekday=plan["weekday"],
+                    meal_type=plan["meal_type"],
+                ))
 
         results = [_strip_internal_fields(r) for r in raw_results]
         answer = _build_answer(filters, results, today, search_mode)
